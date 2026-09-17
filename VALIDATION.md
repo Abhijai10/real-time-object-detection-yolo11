@@ -47,7 +47,7 @@ Object Detection Model/
 │   ├── __main__.py                (14 lines)
 │   ├── analytics.py               (375 lines)
 │   ├── camera.py                  (395 lines)
-│   ├── cli.py                     (789 lines)
+│   ├── cli.py                     (810 lines)
 │   ├── controls.py                (205 lines)
 │   ├── detector.py                (440 lines)
 │   ├── renderer.py                (452 lines)
@@ -57,7 +57,7 @@ Object Detection Model/
 │   ├── conftest.py                (132 lines)
 │   ├── test_analytics.py          (265 lines,  23 tests)
 │   ├── test_camera.py             (184 lines,  20 tests)
-│   ├── test_cli.py                (326 lines,  38 tests)
+│   ├── test_cli.py                (345 lines,  40 tests)
 │   ├── test_controls.py           (195 lines,  32 tests)
 │   ├── test_detector.py           (290 lines,  33 tests)
 │   ├── test_renderer.py           (242 lines,  20 tests)
@@ -80,7 +80,7 @@ Object Detection Model/
     └── commands.md
 ```
 
-Total: **9 application modules (3,355 lines)** and **8 test files (1,959 lines, 231 tests)**.
+Total: **9 application modules (3,376 lines)** and **8 test files (1,978 lines, 233 tests)**.
 
 `yolo11n.pt` is also present in the working tree after the first run. It is a
 **generated artefact** downloaded automatically by Ultralytics and is excluded by
@@ -127,13 +127,13 @@ pytest -q
 ........................................................................ [ 62%]
 ........................................................................ [ 93%]
 ...............                                                          [100%]
-231 passed, 3 deselected in 6.56s
+233 passed, 3 deselected in 1.57s
 ```
 
 | Test file | Tests | Covers |
 | --- | --- | --- |
 | `test_utils.py` | 65 | Validation, path helpers, snapshot/JSON writing, recorder round-trip, logging |
-| `test_cli.py` | 38 | Parser, defaults, every invalid-argument path, `--list-cameras`, config validation, action dispatch |
+| `test_cli.py` | 40 | Parser, defaults, every invalid-argument path, `--list-cameras`, config validation, action dispatch, adaptive program name |
 | `test_detector.py` | 33 | `Detection` geometry, confidence filtering, device resolution, missing-weight errors, result conversion |
 | `test_controls.py` | 32 | Every key binding, confidence clamping, state transitions, history |
 | `test_analytics.py` | 23 | FPS measurement, frame analytics, session aggregates, tie-breaking |
@@ -146,7 +146,7 @@ The 3 deselected tests are the hardware- and model-dependent ones.
 pytest -q -m slow
 ```
 
-**Result:** `2 passed, 232 deselected in 9.22s`
+**Result:** `2 passed, 234 deselected in 9.22s`
 
 These load the **real** `yolo11n.pt` weights and run a real inference pass. The
 model reported **80 object classes**, confirming the checkpoint loaded correctly.
@@ -346,10 +346,77 @@ python -m app --camera <clip>.mp4 --no-display --max-frames 10 --output <dir>
 ```
 
 **Result:** the clone contains 12 root entries, `pytest -q` reported
-**231 passed, 3 deselected in 8.15s**, `--version` printed `python -m app 1.0.0`,
+**233 passed, 3 deselected**, `--version` printed `python -m app 1.0.0`,
 `--help` exited 0, and the pipeline processed 10 frames producing 10 real
 detections and a valid `session_summary.json`. The repository is therefore
 independently reproducible from a clean checkout.
+
+### 3.11 Editable install and the `detect-yolo11` console script
+
+`examples/commands.md` documents installing the project as a command, so that
+path was verified rather than assumed:
+
+```bash
+pip install -e .
+detect-yolo11 --version
+detect-yolo11 --help
+detect-yolo11 --conf 9            # expect exit code 2
+detect-yolo11 --camera <clip>.mp4 --no-display --max-frames 5 --output <dir>
+```
+
+**Result:** the editable wheel built and installed cleanly, the console script was
+created, `--version` exited 0, `--help` printed the full option list, invalid
+confidence exited **2**, and the pipeline ran to completion from a different
+working directory (`/tmp`), writing a valid `session_summary.json`.
+
+This test exposed a small defect: the program name in usage/version output was
+hard-coded to `python -m app`, so the console script misreported itself as
+`python -m app 1.0.0`. `build_parser()` now derives the name from `sys.argv[0]`,
+falling back to the documented invocation. Verified:
+
+```
+$ python -m app --version     ->  python -m app 1.0.0
+$ detect-yolo11 --version     ->  detect-yolo11 1.0.0
+```
+
+Two regression tests were added for this, which is why the suite count moved from
+231 to 233. The `*.egg-info/` build artefact created by the editable install was
+confirmed to be covered by `.gitignore` and was then removed.
+
+### 3.12 Mermaid diagram syntax
+
+The five diagrams in `docs/diagrams/` are referenced by the README and the design
+docs, so a syntax error would show as a broken box on GitHub. Each file was
+rendered through the public `mermaid.ink` service, which returns HTTP 400 for
+invalid syntax:
+
+```python
+url = "https://mermaid.ink/img/" + base64.urlsafe_b64encode(diagram_text.encode()).decode()
+```
+
+**Result:** all five returned **HTTP 200** with real PNG payloads
+(164 KB – 335 KB):
+
+| Diagram | Result |
+| --- | --- |
+| `architecture.mmd` | HTTP 200, 164,332 bytes |
+| `component.mmd` | HTTP 200, 298,407 bytes |
+| `sequence.mmd` | HTTP 200, 218,869 bytes |
+| `use_case.mmd` | HTTP 200, 188,251 bytes |
+| `workflow.mmd` | HTTP 200, 335,186 bytes |
+
+The validator was itself validated with four deliberately broken diagrams
+(unclosed quote, malformed arrow, unknown diagram type, unclosed class body) —
+all four were correctly rejected with **HTTP 400**. The HTTP 200 results above
+are therefore meaningful rather than vacuous.
+
+The rendered `component.mmd` was inspected visually and matches the actual code:
+the classes, attributes, methods and relationships shown are those in
+`app/analytics.py`, `app/camera.py`, `app/cli.py`, `app/controls.py`,
+`app/detector.py`, `app/renderer.py` and `app/utils.py`.
+
+Note: `npm install` is blocked in this environment, so the local Mermaid CLI could
+not be used; the remote renderer was the available equivalent.
 
 ---
 
@@ -461,6 +528,17 @@ python -m app --camera /tmp/odm_validation/clip.mp4 --no-display \
 # --- keyboard controls driven through the real loop --------------------------
 # (scripted key sequence, patching only interpret_key)
 python /tmp/drive_controls.py
+
+# --- editable install and console script -------------------------------------
+pip install -e .
+detect-yolo11 --version
+detect-yolo11 --help
+detect-yolo11 --conf 9
+detect-yolo11 --camera /tmp/odm_validation/clip.mp4 --no-display --max-frames 5 --output /tmp/odm_sc_out
+
+# --- Mermaid diagram syntax --------------------------------------------------
+# each docs/diagrams/*.mmd rendered through https://mermaid.ink/img/<base64>
+# plus four deliberately broken diagrams as a control (all rejected with HTTP 400)
 ```
 
 ---

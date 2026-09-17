@@ -229,14 +229,35 @@ def _dimension_type(value: str) -> int:
         raise argparse.ArgumentTypeError(str(exc)) from exc
 
 
-def build_parser() -> argparse.ArgumentParser:
+def _default_prog() -> str:
+    """Return the program name to show in usage and help messages.
+
+    When the application is launched as ``python -m app`` the interpreter sets
+    ``sys.argv[0]`` to ``app/__main__.py``, so the documented invocation is used.
+    When it is launched through the installed ``detect-yolo11`` console script,
+    that script's own name is shown instead.
+
+    Returns:
+        Either ``"python -m app"`` or the invoked script name.
+    """
+    invoked = Path(sys.argv[0]).name if sys.argv and sys.argv[0] else ""
+    if invoked and invoked not in {"__main__.py", "python", "python3", "py", "-c"}:
+        return invoked
+    return "python -m app"
+
+
+def build_parser(prog: str | None = None) -> argparse.ArgumentParser:
     """Build the command line argument parser.
+
+    Args:
+        prog: Program name shown in usage messages.  Defaults to
+            :func:`_default_prog`.
 
     Returns:
         The configured :class:`argparse.ArgumentParser`.
     """
     parser = argparse.ArgumentParser(
-        prog="python -m app",
+        prog=prog or _default_prog(),
         description=(
             "Real-Time Object Detection and Scene Analytics Using YOLO11.\n"
             "Opens a webcam, detects objects on every frame with the pretrained "

@@ -6,6 +6,7 @@ controller is exercised through the ``FakeDetector`` test double.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -20,8 +21,24 @@ from app.utils import RecordingError
 
 
 def test_parser_builds_without_error() -> None:
-    parser = build_parser()
+    parser = build_parser(prog="python -m app")
     assert parser.prog == "python -m app"
+
+
+def test_default_prog_falls_back_to_the_documented_invocation(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """`python -m app` must show the documented name, not `__main__.py`."""
+    monkeypatch.setattr(sys, "argv", ["/path/to/app/__main__.py"])
+
+    assert build_parser().prog == "python -m app"
+
+
+def test_default_prog_uses_the_console_script_name(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The installed `detect-yolo11` script must identify itself correctly."""
+    monkeypatch.setattr(sys, "argv", ["/usr/local/bin/detect-yolo11"])
+
+    assert build_parser().prog == "detect-yolo11"
 
 
 def test_help_exits_zero_and_documents_the_main_options(capsys: pytest.CaptureFixture[str]) -> None:

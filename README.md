@@ -189,7 +189,7 @@ The codebase must be easy to read, extend and verify.
 
 Seven focused modules, one responsibility each; type hints on every public
 function; docstrings on every public class and function; a single logging
-configuration; and a test suite of 130+ assertions across seven test files. The
+configuration; and a test suite of 233 tests across seven test files. The
 layering is strict — `analytics.py` does not import `detector.py`, and no module
 imports the controller — so any layer can be replaced or tested in isolation.
 

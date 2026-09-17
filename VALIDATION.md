@@ -315,6 +315,42 @@ finished functionality.
 Every path referenced by the README, the docs and `examples/commands.md` was
 checked and exists.
 
+### 3.10 Public repository and fresh clone
+
+```bash
+gh repo create real-time-object-detection-yolo11 --public --source=. --remote=origin --push
+gh repo view Abhijai10/real-time-object-detection-yolo11 --json visibility,url,defaultBranchRef
+```
+
+**Result:** repository created and pushed.
+
+```
+https://github.com/Abhijai10/real-time-object-detection-yolo11
+visibility: PUBLIC
+default branch: main
+```
+
+Root contents confirmed through the GitHub API: `README.md`, `statement.md`,
+`VALIDATION.md`, `requirements.txt`, `pyproject.toml`, `.gitignore`, `LICENSE`,
+and the `app/`, `tests/`, `docs/`, `examples/`, `outputs/` directories.
+
+A fresh clone was then made into a clean directory and verified independently:
+
+```bash
+git clone https://github.com/Abhijai10/real-time-object-detection-yolo11.git
+cd real-time-object-detection-yolo11
+pytest -q
+python -m app --version
+python -m app --help
+python -m app --camera <clip>.mp4 --no-display --max-frames 10 --output <dir>
+```
+
+**Result:** the clone contains 12 root entries, `pytest -q` reported
+**231 passed, 3 deselected in 8.15s**, `--version` printed `python -m app 1.0.0`,
+`--help` exited 0, and the pipeline processed 10 frames producing 10 real
+detections and a valid `session_summary.json`. The repository is therefore
+independently reproducible from a clean checkout.
+
 ---
 
 ## 4. What could NOT be verified

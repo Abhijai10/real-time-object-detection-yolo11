@@ -1,0 +1,175 @@
+classDiagram
+    direction TB
+
+    class Application {
+        +AppConfig config
+        +Camera camera
+        +Detector detector
+        +Renderer renderer
+        +FpsCounter fps_counter
+        +SessionStats session
+        +ControlState controls
+        +VideoRecorder recorder
+        +run() int
+        +handle_action(action, frame) bool
+        +print_banner() None
+        +print_summary() None
+        -_shutdown() None
+    }
+
+    class AppConfig {
+        +int|str camera
+        +str model
+        +float confidence
+        +float iou
+        +int image_size
+        +str device
+        +int|None width
+        +int|None height
+        +Path output_dir
+        +int max_frames
+        +bool display
+        +bool show_help
+        +bool save_summary
+        +validate() AppConfig
+        +is_file_source bool
+    }
+
+    class Camera {
+        +int|str source
+        +int|None width
+        +int|None height
+        +open() Camera
+        +read() tuple
+        +release() None
+        +describe() str
+        +is_open bool
+        +actual_width int
+        +actual_height int
+        +reported_fps float
+    }
+
+    class Detector {
+        +str model_path
+        +float confidence
+        +float iou
+        +str device
+        +int image_size
+        +load() Detector
+        +warmup(image_size) None
+        +detect(frame) list
+        +set_confidence(value) float
+        +class_names dict
+        +is_loaded bool
+    }
+
+    class Detection {
+        <<dataclass, frozen>>
+        +int class_id
+        +str class_name
+        +float confidence
+        +float x1
+        +float y1
+        +float x2
+        +float y2
+        +bbox tuple
+        +bbox_int tuple
+        +label str
+        +as_dict() dict
+    }
+
+    class FpsCounter {
+        +int window
+        +tick(now) float
+        +fps float
+        +frame_count int
+        +reset() None
+    }
+
+    class FrameAnalytics {
+        <<dataclass, frozen>>
+        +int object_count
+        +dict class_counts
+        +tuple unique_classes
+        +float average_confidence
+        +float max_confidence
+        +unique_class_count int
+        +as_dict() dict
+    }
+
+    class SessionStats {
+        +int frames_processed
+        +int total_detections
+        +int peak_simultaneous_detections
+        +Counter class_totals
+        +update(analytics, fps) None
+        +reset(keep_start_time) None
+        +most_frequent_class() tuple
+        +top_classes(limit) list
+        +as_dict() dict
+        +summary_lines() list
+        +average_fps float
+    }
+
+    class ControlState {
+        +float confidence
+        +float step
+        +bool show_overlay
+        +bool recording
+        +apply(action) ControlAction
+        +history tuple
+        +recording_label str
+    }
+
+    class ControlAction {
+        <<enumeration>>
+        NONE
+        QUIT
+        SNAPSHOT
+        TOGGLE_RECORDING
+        RESET_STATS
+        CONFIDENCE_UP
+        CONFIDENCE_DOWN
+        TOGGLE_OVERLAY
+    }
+
+    class Renderer {
+        +tuple palette
+        +draw_detections(frame, detections) ndarray
+        +draw_analytics_overlay(...) ndarray
+        +draw_help_overlay(frame, lines) ndarray
+        +draw_recording_indicator(frame, recording) ndarray
+        +draw_message(frame, message) ndarray
+        +render(...) ndarray
+        +color_for(class_name) tuple
+    }
+
+    class VideoRecorder {
+        +Path output_dir
+        +float fps
+        +start(frame_size, fps) Path
+        +write(frame) bool
+        +stop() Path
+        +is_recording bool
+        +frames_written int
+    }
+
+    Application --> AppConfig : uses
+    Application --> Camera : owns
+    Application --> Detector : owns
+    Application --> Renderer : owns
+    Application --> FpsCounter : owns
+    Application --> SessionStats : owns
+    Application --> ControlState : owns
+    Application --> VideoRecorder : owns
+
+    Camera ..> Detection : "frame flows to"
+    Detector --> Detection : creates
+    Detector ..> FrameAnalytics : "detections flow to"
+    FrameAnalytics ..> SessionStats : "folded into"
+    FpsCounter ..> SessionStats : "fps sample"
+    ControlAction ..> ControlState : "applied by"
+    ControlState ..> Application : "action returned to"
+    Detection ..> Renderer : "drawn by"
+    FrameAnalytics ..> Renderer : "overlay text"
+    SessionStats ..> Renderer : "overlay counters"

@@ -1,0 +1,60 @@
+MIT License
+
+Copyright (c) 2026 <Your Full Name>
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+===============================================================================
+IMPORTANT: THIRD-PARTY LICENSING NOTICE
+===============================================================================
+
+The MIT licence above covers ONLY the original application code in this
+repository (the `app/` package, the `tests/` package and the documentation).
+
+This project DEPENDS ON and INTEGRATES third-party software that is licensed
+separately. The most important point for anyone reusing or redistributing this
+project:
+
+1. Ultralytics YOLO (including the pretrained YOLO11 model weights
+   `yolo11n.pt`) is developed by Ultralytics and is distributed under the
+   **AGPL-3.0** licence (with a separate commercial licence available).
+
+   Because this application imports and links the Ultralytics library and uses
+   its pretrained weights, distributing this project as a whole is subject to
+   the terms of the AGPL-3.0. In practice this means that if you publish or
+   deploy this project, you must comply with the AGPL-3.0, including making the
+   complete corresponding source code available.
+
+   The model weights are NOT included in this repository. They are downloaded
+   automatically by the Ultralytics library on first use.
+
+2. OpenCV (`opencv-python`) is licensed under the **Apache License 2.0**.
+
+3. PyTorch is licensed under the **BSD 3-Clause License**.
+
+4. NumPy is licensed under the **BSD 3-Clause License**.
+
+5. pytest is licensed under the **MIT License**.
+
+See the "References" and "Third-party attribution" sections of README.md for
+links to the upstream projects and their licence texts.
+
+If you intend to use this project commercially, review the Ultralytics
+licensing page before doing so:
+https://www.ultralytics.com/license

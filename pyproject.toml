@@ -1,0 +1,57 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "real-time-object-detection-yolo11"
+version = "1.0.0"
+description = "Real-Time Object Detection and Scene Analytics Using YOLO11 - a command-line webcam Computer Vision application."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["computer-vision", "object-detection", "yolo11", "opencv", "webcam", "real-time"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Image Recognition",
+]
+dependencies = [
+    "ultralytics>=8.3.0",
+    "opencv-python>=4.9.0",
+    "numpy>=1.24",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4"]
+
+[project.scripts]
+detect-yolo11 = "app.cli:main"
+
+[project.urls]
+Documentation = "https://github.com/<your-username>/real-time-object-detection-yolo11#readme"
+Source = "https://github.com/<your-username>/real-time-object-detection-yolo11"
+
+[tool.setuptools]
+packages = ["app"]
+
+[tool.pytest.ini_options]
+minversion = "7.0"
+testpaths = ["tests"]
+pythonpath = ["."]
+# Hardware- and model-dependent tests are excluded so that a plain
+# `pytest -q` works on any machine, with or without a webcam and network access.
+addopts = "-ra -m 'not slow and not display'"
+markers = [
+    "slow: tests that download or load the YOLO11 model weights (deselected by default)",
+    "display: tests that require a physical webcam or a graphical display (deselected by default)",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:ultralytics.*",
+]

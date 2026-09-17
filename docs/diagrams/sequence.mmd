@@ -1,0 +1,62 @@
+sequenceDiagram
+    autonumber
+    actor User
+    participant CLI as app.cli<br/>(parse_args)
+    participant App as Application<br/>(app.cli)
+    participant Cam as Camera<br/>(app.camera)
+    participant Det as Detector<br/>(app.detector)
+    participant YOLO as YOLO11n<br/>(Ultralytics)
+    participant Ana as Analytics<br/>(app.analytics)
+    participant Ren as Renderer<br/>(app.renderer)
+    participant Win as OpenCV window
+    participant FS as outputs/
+
+    User->>CLI: python -m app --camera 0 --conf 0.50
+    CLI->>CLI: parse and validate arguments
+    CLI->>App: AppConfig
+    App->>Det: load()
+    Det->>YOLO: YOLO("yolo11n.pt")
+    YOLO-->>Det: model ready (80 classes)
+    Det-->>App: loaded
+    App->>Cam: open()
+    Cam-->>App: capture ready (width x height)
+    App->>Det: warmup()
+
+    loop Every frame until the user quits
+        App->>Cam: read()
+        Cam-->>App: (True, frame)
+        App->>Det: detect(frame)
+        Det->>YOLO: predict(frame, conf, iou, imgsz, device)
+        YOLO-->>Det: raw boxes, class ids, confidences
+        Det-->>App: list[Detection] (sorted by confidence)
+        App->>Ana: compute_frame_analytics(detections)
+        Ana-->>App: FrameAnalytics
+        App->>Ana: FpsCounter.tick()
+        Ana-->>App: measured FPS
+        App->>Ana: SessionStats.update(analytics, fps)
+        App->>Ren: render(frame, detections, analytics, fps, ...)
+        Ren-->>App: annotated frame
+        App->>Win: imshow(annotated frame)
+        Win-->>App: waitKey(1) -> key code
+    end
+
+    Note over App,User: User presses S
+    App->>FS: save_snapshot(frame)
+    FS-->>App: outputs/snapshot_YYYY_MM_DD_HHMMSS.jpg
+    App->>Win: draw transient message
+
+    Note over App,User: User presses R
+    App->>FS: VideoRecorder.start(frame size, fps)
+    loop While recording
+        App->>FS: VideoRecorder.write(frame)
+    end
+    Note over App,User: User presses R again
+    App->>FS: VideoRecorder.stop()
+
+    Note over App,User: User presses Q or ESC
+    App->>FS: VideoRecorder.stop() (if active)
+    App->>Cam: release()
+    App->>Win: destroyAllWindows()
+    App->>Ana: SessionStats.as_dict()
+    App->>FS: write_json(outputs/session_summary.json)
+    App-->>User: session summary printed in the terminal

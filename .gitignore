@@ -1,0 +1,106 @@
+# =============================================================================
+# Real-Time Object Detection and Scene Analytics Using YOLO11
+# =============================================================================
+
+# --- Python ------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# --- Virtual environments ----------------------------------------------------
+.venv/
+venv/
+ENV/
+env/
+.python-version
+
+# --- Testing and linting caches ---------------------------------------------
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# --- Application output ------------------------------------------------------
+# Snapshots, recordings and the session summary are generated at runtime and
+# should not be committed. The directory itself is kept via .gitkeep.
+outputs/*
+!outputs/.gitkeep
+
+# --- Model weights -----------------------------------------------------------
+# yolo11n.pt (and any other Ultralytics checkpoint) is downloaded automatically
+# on first use, so the binary weights are deliberately not committed.
+*.pt
+*.onnx
+*.engine
+*.tflite
+*.mlpackage
+models/*
+!models/.gitkeep
+
+# --- Ultralytics / PyTorch local caches --------------------------------------
+runs/
+weights/
+*.cache
+.datasets/
+# NOTE: `datasets/` is intentionally NOT ignored - it is a source directory in
+# this project and contains a .gitkeep placeholder.
+
+# --- Secrets and local configuration ----------------------------------------
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+secrets.yaml
+secrets.yml
+
+# --- Editors and IDEs --------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.spyderproject
+.spyproject
+.ropeproject
+
+# --- Operating system --------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+
+# --- Logs and temporary files ------------------------------------------------
+*.log
+*.tmp
+*.temp
+*.bak
+.cache/
+tmp/

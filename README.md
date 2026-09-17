@@ -182,27 +182,48 @@ is, from 0 to 1. Only objects above the confidence threshold are kept, and the
 model's own non-maximum suppression removes overlapping duplicate boxes for the
 same object.
 
-### Example session summary
+### Example real webcam session
 
-`outputs/session_summary.json` records what happened during a run. This is a
-real session recorded by the author on a laptop webcam, and is an example rather
-than a benchmark:
+`outputs/session_summary.json` records what happened during a run. The file
+below is the complete output of one real session recorded by the author on a
+MacBook webcam. It is the author's sample session, **not** a benchmark, and the
+numbers say nothing about how well YOLO11n performs in general:
 
 ```json
 {
-  "frames_processed": 1913,
-  "total_detections": 3132,
-  "average_detections_per_frame": 1.64,
-  "average_confidence": 0.679,
-  "average_fps": 15.2,
-  "peak_fps": 19.8,
-  "most_frequent_class": "person"
+  "started_at": "2026-09-18T00:45:36",
+  "duration_seconds": 74.32,
+  "frames_processed": 1063,
+  "total_detections": 1573,
+  "most_objects_in_one_frame": 5,
+  "average_detections_per_frame": 1.48,
+  "average_confidence": 0.7388,
+  "average_fps": 15.98,
+  "peak_fps": 19.78,
+  "most_frequent_class": "person",
+  "class_totals": {
+    "bottle": 3,
+    "bowl": 22,
+    "cell phone": 85,
+    "chair": 7,
+    "dog": 14,
+    "fork": 2,
+    "microwave": 44,
+    "oven": 8,
+    "person": 1290,
+    "potted plant": 1,
+    "refrigerator": 9,
+    "toothbrush": 45,
+    "tv": 37,
+    "wine glass": 6
+  }
 }
 ```
 
-Frame rates vary a lot between machines. The numbers above are specific to one
-laptop and one camera resolution and should not be read as a general
-performance figure.
+The session was captured at camera index 0 through the AVFoundation backend, on
+the Apple Silicon GPU (MPS), with the confidence threshold at 0.25. Frame rates
+vary a lot between machines, so the FPS figures above are specific to this one
+laptop and camera resolution.
 
 ## 9. Limitations
 
@@ -244,12 +265,17 @@ accurate the model is — that is not something unit tests can measure.
 
 - Ultralytics YOLO11 documentation — <https://docs.ultralytics.com/models/yolo11/>
 - Ultralytics Python API — <https://docs.ultralytics.com/modes/predict/>
-- YOLO11 paper — Khanam, R. and Hussain, M. (2024), *YOLOv11: An Overview of
-  the Key Architectural Enhancements*
+- Ultralytics YOLO11 software citation — Jocher, G. and Qiu, J. (2024),
+  *Ultralytics YOLO11*, version 11.0.0,
+  <https://github.com/ultralytics/ultralytics> (AGPL-3.0)
 - OpenCV documentation — <https://docs.opencv.org/>
 - Redmon, J. et al. (2016), *You Only Look Once: Unified, Real-Time Object
   Detection*
 - COCO dataset — <https://cocodataset.org/>
+
+The YOLO11 documentation and the software citation above are the authoritative
+references for the model. Ultralytics states that it has **not** published a
+formal research paper for YOLO11, so no paper citation is given here.
 
 ## 13. Third-party attribution and licence
 

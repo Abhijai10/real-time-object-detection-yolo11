@@ -24,9 +24,9 @@ flowchart TD
     Quit -->|Yes| Shutdown
 
     Shutdown["Release the camera and close the window"]
-    Shutdown --> Save["Write outputs/session_summary.json"]
-    Save --> Print["Print the session summary"]
-    Print --> Stop
+    Shutdown --> Print["Print the session summary"]
+    Print --> Save["Write outputs/session_summary.json"]
+    Save --> Stop
 
     classDef mine fill:#1f3b57,stroke:#7fb2e5,color:#ffffff
     classDef stop fill:#2f4a2f,stroke:#9fe59f,color:#ffffff

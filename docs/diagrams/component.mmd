@@ -1,13 +1,12 @@
 classDiagram
     class Camera {
-        +int index
-        +str source
+        +int frames_read
+        +bool is_file_source
+        +bool is_open
         +open() Camera
         +read() tuple
         +release() None
         +describe() str
-        +is_file_source bool
-        +is_open bool
     }
 
     class Detector {

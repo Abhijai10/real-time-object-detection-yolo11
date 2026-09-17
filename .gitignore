@@ -1,5 +1,5 @@
 # =============================================================================
-# Real-Time Object Detection and Scene Analytics Using YOLO11
+# Real-Time Object Detection Using YOLO11
 # =============================================================================
 
 # --- Python ------------------------------------------------------------------
@@ -42,8 +42,8 @@ htmlcov/
 .nox/
 
 # --- Application output ------------------------------------------------------
-# Snapshots, recordings and the session summary are generated at runtime and
-# should not be committed. The directory itself is kept via .gitkeep.
+# Snapshots and the session summary are generated at runtime and should not be
+# committed. The directory itself is kept via .gitkeep.
 outputs/*
 !outputs/.gitkeep
 
@@ -55,16 +55,12 @@ outputs/*
 *.engine
 *.tflite
 *.mlpackage
-models/*
-!models/.gitkeep
 
 # --- Ultralytics / PyTorch local caches --------------------------------------
 runs/
 weights/
 *.cache
 .datasets/
-# NOTE: `datasets/` is intentionally NOT ignored - it is a source directory in
-# this project and contains a .gitkeep placeholder.
 
 # --- Secrets and local configuration ----------------------------------------
 .env

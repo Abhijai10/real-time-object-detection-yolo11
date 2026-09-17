@@ -475,6 +475,54 @@ authorization path, and the fallback wording), which is why the suite count move
 from 233 to 240. This is the only part of the project whose behaviour was
 *directly observed on real failing hardware* rather than simulated.
 
+### 3.14 The live OpenCV window (correcting an earlier claim)
+
+An earlier revision of this document stated that no graphical display was
+available, so `cv2.imshow` could not be exercised. **That was wrong.** The window
+server is reachable from this environment; the original conclusion came from a
+test that aborted on a missing `timeout` binary and was never re-run.
+
+Checked properly, and with a control so the result means something:
+
+```python
+cv2.getWindowProperty("no-such-window-xyz", cv2.WND_PROP_VISIBLE)   # raises: error
+cv2.namedWindow(name); cv2.imshow(name, frame); cv2.waitKey(600)
+cv2.getWindowProperty(name, cv2.WND_PROP_VISIBLE)                   # 1.0
+```
+
+The control raises, so the API discriminates; the real window reports **`1.0`**,
+which means it is genuinely on screen rather than a silently-discarded call.
+
+The **whole application** was then run with the display enabled — the first time
+in this project's validation that a real window was present:
+
+```bash
+python -m app --camera /tmp/odm_live/clip.mp4 --max-frames 60 --output /tmp/odm_live/out
+```
+
+**Result:** the banner reported `Display window : enabled`, all 60 frames were
+processed with 65 detections, and the run exited cleanly. A second run drove the
+control actions through the same live loop (`display=True`), producing:
+
+| Artefact | Result |
+| --- | --- |
+| `snapshot_2026_09_18_000409.jpg` | 46,752 bytes — inspected visually |
+| `recording_2026_09_18_000409.mp4` | 286,605 bytes |
+| `session_summary.json` | 500 bytes |
+
+The snapshot shows the annotated frame exactly as rendered in the live window: a
+bounding box labelled `frisbee 0.79`, the analytics panel (Objects, Classes, FPS,
+Confidence, Resolution, average confidence, per-class counts, frame/detection
+totals) and the keyboard help overlay. Measured 26–31 FPS on MPS at 640×480.
+
+**What this changes:** the live window is no longer an unverified component. What
+remains unverified is the *physical webcam* (§3.13, blocked by TCC) and *physical
+key presses* (key injection is blocked), not the display path.
+
+`screen recording` permission is denied to this environment, so
+`screencapture` could not be used; the application's own snapshot facility
+provided the visual evidence instead.
+
 ---
 
 ## 4. What could NOT be verified
@@ -484,16 +532,17 @@ Stated plainly, because it matters:
 | Item | Status | Reason |
 | --- | --- | --- |
 | Opening a **physical webcam** | **Not verified** | The camera hardware **is** present (macOS reports a FaceTime HD Camera), but the operating system denies camera access to any process launched from this environment — `OpenCV: not authorized to capture video (status 0)`. See §3.13. This is a host permission boundary, not an application defect. |
-| **Live OpenCV window** (`cv2.imshow`) | **Not verified** | No graphical display is available in this environment. Window creation, live display and the REC indicator on a real window could not be observed. |
-| **Physical keyboard input** to the window | **Not verified** | `cv2.waitKey` requires a real focused window. Controls were verified by driving the same action-dispatch code path programmatically instead. |
+| **Live OpenCV window** (`cv2.imshow`) | **Verified** | §3.14. The window server *is* reachable from this environment, and `WND_PROP_VISIBLE` returns `1.0` for a created window. The full application was run with `display=True` against a video source; the annotated window appeared, rendered the overlay, and the loop exited cleanly. |
+| **Physical keyboard input** to the window | **Not verified** | `cv2.waitKey` requires a real keystroke, and key injection is blocked (`osascript` → privilege violation `-10004`). Controls were verified by driving the same action-dispatch code path programmatically instead (§3.8). |
 | **Real-scene detection quality** | **Not verified** | No camera access and no real-object imagery were available. The detections observed were on synthetic geometric input and are meaningless as an accuracy measure. |
 | **Model accuracy metrics** (precision, recall, mAP) | **Not measured** | Requires a labelled evaluation dataset with ground-truth boxes, which this project deliberately does not ship. These are documented conceptually only. |
 | **Performance on other hardware** | **Not verified** | The measured 56 FPS is specific to this machine (Apple Silicon MPS, 640×480). No claim is made for any other configuration. |
 | **Windows / Linux behaviour** | **Not verified** | Only macOS was available. The code paths are platform-guarded (`CAP_AVFOUNDATION` / `CAP_DSHOW` / default), but they were not executed. |
 
-The verification in section 3.7 and 3.8 covers everything the webcam and display
-would otherwise have exercised, **except** the physical device and the physical
-window themselves.
+The verification in sections 3.7, 3.8 and 3.14 covers everything the webcam would
+otherwise have exercised, **except** the physical camera device itself. The live
+display window is now verified (§3.14); the physical device and physical key
+presses are not.
 
 **The first thing to do on a machine with a webcam is:**
 
@@ -608,9 +657,11 @@ python -m app                               # permission-specific message, exit 
 
 ## 8. Known limitations of this validation
 
-* The webcam, the display window and physical keyboard input were **not** tested,
-  as explained in section 4. They are the only parts of the project that remain
-  unverified.
-* The detection results reported in §3.7 come from synthetic input and are
-  evidence that the pipeline works, not that the model is accurate.
+* The physical webcam and physical keyboard input were **not** tested, as explained
+  in section 4. The camera hardware is present but the operating system denies this
+  environment access to it (§3.13). Those two are the only parts of the project
+  that remain unverified — the **live display window is now verified** (§3.14),
+  correcting an earlier mistaken claim.
+* The detection results reported in §3.7 and §3.14 come from synthetic input and
+  are evidence that the pipeline works, not that the model is accurate.
 * The measured FPS is specific to this machine and this input resolution.

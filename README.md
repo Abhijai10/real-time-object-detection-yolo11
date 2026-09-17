@@ -189,7 +189,7 @@ The codebase must be easy to read, extend and verify.
 
 Seven focused modules, one responsibility each; type hints on every public
 function; docstrings on every public class and function; a single logging
-configuration; and a test suite of 233 tests across seven test files. The
+configuration; and a test suite of 240 tests across seven test files. The
 layering is strict — `analytics.py` does not import `detector.py`, and no module
 imports the controller — so any layer can be replaced or tested in isolation.
 
@@ -843,19 +843,24 @@ On a machine with a working webcam, `python -m app` should:
 1. Print the startup banner listing the model, device, confidence, IoU, inference
    size, capture source, backend, resolution, output directory and controls.
 2. Download `yolo11n.pt` on the very first run, then reuse the cached copy.
-3. Open a window titled
+3. **On macOS, ask for camera permission the first time.** Approve it, then quit
+   and reopen your terminal if the app still reports a denial. The permission is
+   granted to the *terminal application* you launch from, so running the project
+   from a different terminal (or from an IDE's integrated terminal) may require
+   approving it again.
+4. Open a window titled
    `Real-Time Object Detection and Scene Analytics - YOLO11`.
-4. Show the live camera feed with bounding boxes and `class confidence` labels
+5. Show the live camera feed with bounding boxes and `class confidence` labels
    drawn around recognised objects.
-5. Show an analytics panel in the top-left corner reporting objects, classes,
+6. Show an analytics panel in the top-left corner reporting objects, classes,
    FPS, the active confidence threshold, the camera resolution and the per-class
    counts.
-6. Show the keyboard help panel in the bottom-left corner.
-7. Update the FPS value continuously — it will fluctuate, because it is measured.
-8. Respond to `S` by writing a JPEG and printing its path, and to `R` by showing
+7. Show the keyboard help panel in the bottom-left corner.
+8. Update the FPS value continuously — it will fluctuate, because it is measured.
+9. Respond to `S` by writing a JPEG and printing its path, and to `R` by showing
    a REC indicator and writing a video file.
-9. On `Q` or `ESC`, close the window, print a session summary and write
-   `outputs/session_summary.json`.
+10. On `Q` or `ESC`, close the window, print a session summary and write
+    `outputs/session_summary.json`.
 
 Actual FPS depends on the CPU/GPU, camera resolution, model size, inference
 settings, operating system and background workload. **No specific FPS is
@@ -958,7 +963,8 @@ uses the published pretrained model as a component.
 
 | Symptom | Cause and fix |
 | --- | --- |
-| `Error: Unable to open webcam at camera index 0.` | No camera connected, the camera is in use by another app, camera permission was not granted to the terminal, or the index is wrong. Run `python -m app --list-cameras`, then try `--camera 1`. On macOS, grant camera access in **System Settings → Privacy & Security → Camera**. On Windows, check **Settings → Privacy → Camera**. |
+| `Error: The operating system denied camera access for camera index 0.` | The camera exists but macOS/Windows has not granted this program permission to use it. **macOS:** System Settings → Privacy & Security → Camera, enable the terminal app you are running from (Terminal, iTerm2, VS Code, …), then quit and reopen that terminal. **Windows:** Settings → Privacy & security → Camera. **Linux:** add your user to the `video` group and log back in. |
+| `Error: Unable to open webcam at camera index 0.` | No camera connected, the camera is in use by another app, or the index is wrong. Run `python -m app --list-cameras`, then try `--camera 1`. |
 | The window opens but the video is black | Another application is holding the camera, or the driver needs a moment. Close other camera applications and restart. |
 | `The 'ultralytics' package is not installed` | The dependencies were not installed, or the virtual environment is not active. Run `pip install -r requirements.txt` with the environment activated. |
 | The model download fails | No network access, or a proxy is required. Download `yolo11n.pt` manually from the Ultralytics releases page and pass it with `--model /path/to/yolo11n.pt`. |

@@ -7,11 +7,19 @@ present, and the remaining assertions exercise the deterministic error paths.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 import pytest
 
-from app.camera import Camera, CameraError, capture_backend_name, probe_camera
+from app.camera import (
+    Camera,
+    CameraError,
+    _capture_native_stderr,
+    _denied_by_operating_system,
+    capture_backend_name,
+    probe_camera,
+)
 
 
 # --------------------------------------------------------------------------- #
@@ -84,6 +92,78 @@ def test_open_error_message_for_a_file_mentions_the_path(dummy_video_file: Path)
 
     assert "Unable to open the video source" in message
     assert "clip.mp4" in message
+
+
+# --------------------------------------------------------------------------- #
+# Operating-system permission denials
+# --------------------------------------------------------------------------- #
+
+#: The exact text OpenCV's AVFoundation backend prints on macOS when the OS
+#: denies camera access.  Captured from a real run on a machine with a
+#: FaceTime HD Camera that had not granted the calling process permission.
+_NATIVE_PERMISSION_DENIAL = (
+    "OpenCV: not authorized to capture video (status 0), requesting...\n"
+    "OpenCV: camera failed to properly initialize!\n"
+    "[ WARN:0@0.158] global cap.cpp:477 open VIDEOIO(AVFOUNDATION): backend is "
+    "generally available but can't be used to capture by index\n"
+)
+
+
+def test_denied_by_operating_system_detects_a_real_denial() -> None:
+    assert _denied_by_operating_system([_NATIVE_PERMISSION_DENIAL]) is True
+
+
+def test_denied_by_operating_system_ignores_unrelated_output() -> None:
+    assert _denied_by_operating_system(["OpenCV: camera failed to properly initialize!"]) is False
+    assert _denied_by_operating_system([]) is False
+
+
+def test_permission_denial_produces_permission_specific_guidance() -> None:
+    """A denied permission must not be reported as a missing camera."""
+    message = Camera(index=0)._open_error_message([_NATIVE_PERMISSION_DENIAL])  # noqa: SLF001
+
+    assert "denied camera access" in message
+    assert "Privacy & Security > Camera" in message
+    assert "Quit and reopen that terminal" in message
+    # The generic "no webcam is connected" list must NOT appear here.
+    assert "No webcam is connected" not in message
+
+
+def test_generic_failure_keeps_the_cause_list() -> None:
+    message = Camera(index=0)._open_error_message()  # noqa: SLF001
+
+    assert "Unable to open webcam at camera index 0" in message
+    assert "No webcam is connected" in message
+    assert "denied camera access" not in message
+
+
+def test_file_source_failure_never_reports_a_camera_permission_problem(
+    dummy_video_file: Path,
+) -> None:
+    message = Camera(source=dummy_video_file)._open_error_message(  # noqa: SLF001
+        [_NATIVE_PERMISSION_DENIAL]
+    )
+
+    assert "Unable to open the video source" in message
+    assert "denied camera access" not in message
+
+
+def test_capture_native_stderr_captures_native_output() -> None:
+    with _capture_native_stderr() as captured:
+        os.write(2, b"OpenCV: not authorized to capture video (status 0)\n")
+
+    assert len(captured) == 1
+    assert "not authorized" in captured[0]
+
+
+def test_capture_native_stderr_restores_the_original_descriptor() -> None:
+    """After the block, file descriptor 2 must point at the real stderr again."""
+    before = os.fstat(2)
+    with _capture_native_stderr():
+        pass
+    after = os.fstat(2)
+
+    assert (before.st_dev, before.st_ino) == (after.st_dev, after.st_ino)
 
 
 def test_capture_backend_name_is_a_non_empty_string() -> None:

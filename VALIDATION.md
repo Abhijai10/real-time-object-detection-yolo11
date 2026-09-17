@@ -46,7 +46,7 @@ Object Detection Model/
 │   ├── __init__.py                (29 lines)
 │   ├── __main__.py                (14 lines)
 │   ├── analytics.py               (375 lines)
-│   ├── camera.py                  (395 lines)
+│   ├── camera.py                  (459 lines)
 │   ├── cli.py                     (810 lines)
 │   ├── controls.py                (205 lines)
 │   ├── detector.py                (440 lines)
@@ -56,7 +56,7 @@ Object Detection Model/
 ├── tests/
 │   ├── conftest.py                (132 lines)
 │   ├── test_analytics.py          (265 lines,  23 tests)
-│   ├── test_camera.py             (184 lines,  20 tests)
+│   ├── test_camera.py             (264 lines,  27 tests)
 │   ├── test_cli.py                (345 lines,  40 tests)
 │   ├── test_controls.py           (195 lines,  32 tests)
 │   ├── test_detector.py           (290 lines,  33 tests)
@@ -80,7 +80,7 @@ Object Detection Model/
     └── commands.md
 ```
 
-Total: **9 application modules (3,376 lines)** and **8 test files (1,978 lines, 233 tests)**.
+Total: **9 application modules (3,440 lines)** and **8 test files (2,058 lines, 240 tests)**.
 
 `yolo11n.pt` is also present in the working tree after the first run. It is a
 **generated artefact** downloaded automatically by Ultralytics and is excluded by
@@ -137,7 +137,7 @@ pytest -q
 | `test_detector.py` | 33 | `Detection` geometry, confidence filtering, device resolution, missing-weight errors, result conversion |
 | `test_controls.py` | 32 | Every key binding, confidence clamping, state transitions, history |
 | `test_analytics.py` | 23 | FPS measurement, frame analytics, session aggregates, tie-breaking |
-| `test_camera.py` | 20 | Construction, validation, error messages, lifecycle, context manager |
+| `test_camera.py` | 27 | Construction, validation, error messages, lifecycle, context manager, camera-permission detection |
 | `test_renderer.py` | 20 | Colours, box drawing, clipping, every overlay layer, 1×1 edge case |
 
 The 3 deselected tests are the hardware- and model-dependent ones.
@@ -346,7 +346,7 @@ python -m app --camera <clip>.mp4 --no-display --max-frames 10 --output <dir>
 ```
 
 **Result:** the clone contains 12 root entries, `pytest -q` reported
-**233 passed, 3 deselected**, `--version` printed `python -m app 1.0.0`,
+**240 passed, 3 deselected**, `--version` printed `python -m app 1.0.0`,
 `--help` exited 0, and the pipeline processed 10 frames producing 10 real
 detections and a valid `session_summary.json`. The repository is therefore
 independently reproducible from a clean checkout.
@@ -418,6 +418,63 @@ the classes, attributes, methods and relationships shown are those in
 Note: `npm install` is blocked in this environment, so the local Mermaid CLI could
 not be used; the remote renderer was the available equivalent.
 
+### 3.13 Camera-permission diagnosis (why the webcam could not be opened)
+
+Section 4 previously recorded the webcam as "not verified — no webcam attached".
+That was imprecise. The hardware **does** exist on this machine; the failure is a
+permission block. Both facts were established directly:
+
+```bash
+system_profiler SPCameraDataType          # macOS lists the attached camera
+python -m app --list-cameras              # OpenCV still cannot open any index
+```
+
+`system_profiler` reports a **FaceTime HD Camera**, yet every index 0–4 fails to
+open. A direct OpenCV probe with both the `AVFoundation` and default backends
+printed the cause on stderr:
+
+```
+OpenCV: not authorized to capture video (status 0), requesting...
+```
+
+macOS is refusing camera access to the process, so the device cannot be opened by
+anything launched from this environment. This is a **host permission boundary**,
+not a defect in the application, and it cannot be worked around from inside the
+sandbox — the OS prompt has to be answered by a process the user launched.
+
+**Application change made as a result.** The generic failure message was replaced
+with one that distinguishes the two situations, so a user hitting this sees the
+actual cause rather than a list of guesses. `app/camera.py` now detects the
+authorization failure and names it first:
+
+```
+Error: The operating system denied camera access for camera index 0.
+The camera hardware is present, but this program is not authorised to use it.
+
+macOS:
+  1. Open System Settings > Privacy & Security > Camera.
+  2. Enable the terminal application you are running from
+     (Terminal, iTerm2, VS Code, ...).
+  3. Quit and reopen that terminal, then run the command again.
+
+Windows:
+  Settings > Privacy & security > Camera > let apps access your camera.
+
+Linux:
+  Make sure your user is in the 'video' group, then log back in.
+```
+
+Verified live against the real failure on this machine:
+
+```bash
+python -m app        # exit 1, permission-specific message
+```
+
+Seven tests were added for the detection logic (message selection, the
+authorization path, and the fallback wording), which is why the suite count moved
+from 233 to 240. This is the only part of the project whose behaviour was
+*directly observed on real failing hardware* rather than simulated.
+
 ---
 
 ## 4. What could NOT be verified
@@ -426,10 +483,10 @@ Stated plainly, because it matters:
 
 | Item | Status | Reason |
 | --- | --- | --- |
-| Opening a **physical webcam** | **Not verified** | No webcam is attached to this machine. `--list-cameras` confirmed that indices 0–4 all fail to open. |
+| Opening a **physical webcam** | **Not verified** | The camera hardware **is** present (macOS reports a FaceTime HD Camera), but the operating system denies camera access to any process launched from this environment — `OpenCV: not authorized to capture video (status 0)`. See §3.13. This is a host permission boundary, not an application defect. |
 | **Live OpenCV window** (`cv2.imshow`) | **Not verified** | No graphical display is available in this environment. Window creation, live display and the REC indicator on a real window could not be observed. |
 | **Physical keyboard input** to the window | **Not verified** | `cv2.waitKey` requires a real focused window. Controls were verified by driving the same action-dispatch code path programmatically instead. |
-| **Real-scene detection quality** | **Not verified** | No camera and no real-object imagery were available. The detections observed were on synthetic geometric input and are meaningless as an accuracy measure. |
+| **Real-scene detection quality** | **Not verified** | No camera access and no real-object imagery were available. The detections observed were on synthetic geometric input and are meaningless as an accuracy measure. |
 | **Model accuracy metrics** (precision, recall, mAP) | **Not measured** | Requires a labelled evaluation dataset with ground-truth boxes, which this project deliberately does not ship. These are documented conceptually only. |
 | **Performance on other hardware** | **Not verified** | The measured 56 FPS is specific to this machine (Apple Silicon MPS, 640×480). No claim is made for any other configuration. |
 | **Windows / Linux behaviour** | **Not verified** | Only macOS was available. The code paths are platform-guarded (`CAP_AVFOUNDATION` / `CAP_DSHOW` / default), but they were not executed. |
@@ -539,6 +596,12 @@ detect-yolo11 --camera /tmp/odm_validation/clip.mp4 --no-display --max-frames 5 
 # --- Mermaid diagram syntax --------------------------------------------------
 # each docs/diagrams/*.mmd rendered through https://mermaid.ink/img/<base64>
 # plus four deliberately broken diagrams as a control (all rejected with HTTP 400)
+
+# --- camera-permission diagnosis ---------------------------------------------
+system_profiler SPCameraDataType            # camera hardware is present
+python -c "import cv2; [print(i, cv2.VideoCapture(i, cv2.CAP_AVFOUNDATION).isOpened()) for i in (0,1)]"
+# stderr: OpenCV: not authorized to capture video (status 0), requesting...
+python -m app                               # permission-specific message, exit 1
 ```
 
 ---

@@ -10,8 +10,9 @@ from __future__ import annotations
 import contextlib
 import os
 import platform
+import tempfile
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any, Iterator, Sequence
 
 from app.utils import (
     SUPPORTED_VIDEO_EXTENSIONS,
@@ -39,34 +40,70 @@ logger = get_logger(__name__)
 
 
 @contextlib.contextmanager
-def _silence_native_stderr() -> Iterator[None]:
-    """Temporarily hide the OpenCV backend's native stderr chatter.
+def _capture_native_stderr() -> Iterator[list[str]]:
+    """Hide the OpenCV backend's native stderr chatter and capture its text.
 
-    When no device is present, OpenCV's video backends print messages such as
-    ``OpenCV: camera failed to properly initialize!`` straight from C++, before
-    any Python code runs.  Those lines are confusing when they appear next to
-    our own clear error messages, so they are suppressed while a device is
-    opened or probed.
+    When a device cannot be opened, OpenCV's video backends print messages
+    straight from C++ - for example ``OpenCV: camera failed to properly
+    initialize!`` or ``OpenCV: not authorized to capture video (status 0)`` -
+    before any Python code runs.  Those lines are confusing next to our own
+    error messages, so they are hidden.  The text is *captured* rather than
+    discarded because it is the only place the real cause (a missing device
+    versus a denied permission) is visible.
 
-    This is purely cosmetic: if the file descriptors cannot be redirected the
-    context manager degrades to a no-op rather than failing.
+    Yields:
+        A one-element list that receives the captured text when the block exits.
+        The list is empty if the redirection could not be set up, in which case
+        this degrades to a plain pass-through.
     """
+    captured: list[str] = []
+    saved_stderr: int | None = None
+    buffer = None
+
     try:
-        devnull = os.open(os.devnull, os.O_WRONLY)
+        buffer = tempfile.TemporaryFile()
         saved_stderr = os.dup(2)
+        os.dup2(buffer.fileno(), 2)
     except OSError:  # pragma: no cover - platform dependent
-        yield
+        if saved_stderr is not None:
+            os.close(saved_stderr)
+        if buffer is not None:
+            buffer.close()
+        yield captured
         return
 
     try:
-        os.dup2(devnull, 2)
-        yield
+        yield captured
     finally:
         try:
             os.dup2(saved_stderr, 2)
         finally:
             os.close(saved_stderr)
-            os.close(devnull)
+            buffer.seek(0)
+            captured.append(buffer.read().decode("utf-8", "replace"))
+            buffer.close()
+
+
+#: Substrings (lower case) that OpenCV prints when the OS denied camera access.
+_PERMISSION_MARKERS: tuple[str, ...] = (
+    "not authorized",
+    "not authorised",
+    "permission",
+    "access denied",
+)
+
+
+def _denied_by_operating_system(native_output: Sequence[str]) -> bool:
+    """Return ``True`` when OpenCV reported an OS-level permission denial.
+
+    Args:
+        native_output: Text captured from the native OpenCV backend.
+
+    Returns:
+        ``True`` when the output contains a known permission-denial marker.
+    """
+    joined = " ".join(native_output).lower()
+    return any(marker in joined for marker in _PERMISSION_MARKERS)
 
 
 #: Number of frames to read while probing a device.  Some drivers need a couple
@@ -251,14 +288,14 @@ class Camera:
                     f"Unsupported video extension '{path.suffix}'.\nSupported extensions: {supported}"
                 )
             logger.info("Opening video source %s", path)
-            with _silence_native_stderr():
+            with _capture_native_stderr() as native_output:
                 capture = module.VideoCapture(str(path))
         else:
             device_index = int(self.source)
             logger.info(
                 "Opening webcam at index %d (backend: %s)", device_index, capture_backend_name()
             )
-            with _silence_native_stderr():
+            with _capture_native_stderr() as native_output:
                 capture = module.VideoCapture(device_index, _resolve_backend())
                 if not capture.isOpened():
                     # Retry with the default backend; some drivers reject a forced one.
@@ -267,10 +304,10 @@ class Camera:
 
         if not capture.isOpened():
             capture.release()
-            raise CameraError(self._open_error_message())
+            raise CameraError(self._open_error_message(native_output))
 
         if self.width is not None and self.height is not None:
-            with _silence_native_stderr():
+            with _capture_native_stderr():
                 capture.set(module.CAP_PROP_FRAME_WIDTH, float(self.width))
                 capture.set(module.CAP_PROP_FRAME_HEIGHT, float(self.height))
             logger.debug("Requested resolution %dx%d", self.width, self.height)
@@ -286,10 +323,37 @@ class Camera:
 
         return self
 
-    def _open_error_message(self) -> str:
-        """Build a clear, actionable message for a failed open."""
+    def _open_error_message(self, native_output: Sequence[str] = ()) -> str:
+        """Build a clear, actionable message for a failed open.
+
+        Args:
+            native_output: Text captured from the native OpenCV backend.  When it
+                indicates an OS-level permission denial, permission-specific
+                guidance is returned instead of the generic cause list.
+
+        Returns:
+            A multi-line, user-facing error message.
+        """
         if self.is_file_source:
             return f"Error: Unable to open the video source '{self.source}'."
+
+        if _denied_by_operating_system(native_output):
+            return (
+                f"Error: The operating system denied camera access for camera index "
+                f"{int(self.source)}.\n"
+                "The camera hardware is present, but this program is not authorised "
+                "to use it.\n\n"
+                "macOS:\n"
+                "  1. Open System Settings > Privacy & Security > Camera.\n"
+                "  2. Enable the terminal application you are running from\n"
+                "     (Terminal, iTerm2, VS Code, ...).\n"
+                "  3. Quit and reopen that terminal, then run the command again.\n\n"
+                "Windows:\n"
+                "  Settings > Privacy & security > Camera > let apps access your camera.\n\n"
+                "Linux:\n"
+                "  Make sure your user is in the 'video' group, then log back in."
+            )
+
         return (
             f"Error: Unable to open webcam at camera index {int(self.source)}.\n"
             "Possible causes:\n"
@@ -369,7 +433,7 @@ def probe_camera(index: int = 0) -> bool:
         return False
 
     try:
-        with _silence_native_stderr():
+        with _capture_native_stderr():
             for _ in range(_PROBE_ATTEMPTS):
                 ok, frame = camera.read()
                 if ok and frame is not None and getattr(frame, "size", 0) > 0:

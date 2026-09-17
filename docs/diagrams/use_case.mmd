@@ -1,56 +1,23 @@
 flowchart LR
-    User(("Operator"))
-    Terminal(("Terminal"))
-    Camera(("Webcam"))
-    Ultralytics(("Ultralytics YOLO11n"))
+    Student(["Student / User"])
 
-    subgraph System["Real-Time Object Detection and Scene Analytics"]
-        UC1(["Start the application with CLI options"])
-        UC2(["Validate arguments and configuration"])
-        UC3(["Open the webcam"])
-        UC4(["Detect objects in each live frame"])
-        UC5(["Display annotated live video"])
-        UC6(["View live scene analytics"])
-        UC7(["Adjust the confidence threshold at runtime"])
-        UC8(["Save an annotated snapshot"])
-        UC9(["Record the annotated output video"])
-        UC10(["Reset session statistics"])
-        UC11(["Quit the application cleanly"])
-        UC12(["Write the session summary"])
-        UC13(["List available camera indices"])
-        UC14(["Run in headless mode without a display"])
-    end
+    Student --> UC1["Start the application<br/>python -m app"]
+    Student --> UC2["Choose the camera, model<br/>and confidence threshold"]
+    Student --> UC3["Watch objects being detected<br/>on the live video"]
+    Student --> UC4["Read the live statistics<br/>objects, classes, FPS"]
+    Student --> UC5["Change the confidence<br/>threshold while running"]
+    Student --> UC6["Save a snapshot<br/>of the current frame"]
+    Student --> UC7["Clear the session statistics"]
+    Student --> UC8["Quit the application<br/>Q or ESC"]
 
-    User --> UC1
-    User --> UC7
-    User --> UC8
-    User --> UC9
-    User --> UC10
-    User --> UC11
-    User --> UC13
-    User --> UC14
-
-    Terminal --> UC1
-    Terminal --> UC13
-    Camera --> UC3
-    Camera --> UC4
-
-    UC1 -.->|"include"| UC2
-    UC1 -.->|"include"| UC3
-    UC4 -.->|"include"| UC3
-    UC4 -.->|"uses"| Ultralytics
-    UC5 -.->|"include"| UC4
-    UC6 -.->|"include"| UC4
-    UC7 -.->|"include"| UC4
-    UC8 -.->|"extend"| UC5
-    UC9 -.->|"extend"| UC5
-    UC10 -.->|"extend"| UC6
-    UC11 -.->|"include"| UC12
+    UC3 -.->|"includes"| UC9["Run YOLO11n inference<br/>on each frame"]
+    UC6 -.->|"includes"| UC10["Write a JPEG to outputs/"]
+    UC8 -.->|"includes"| UC11["Write session_summary.json"]
 
     classDef actor fill:#2f4a2f,stroke:#9fe59f,color:#ffffff
     classDef usecase fill:#1f3b57,stroke:#7fb2e5,color:#ffffff
-    classDef external fill:#4a2f1f,stroke:#e5b57f,color:#ffffff
+    classDef included fill:#3b3b1f,stroke:#e5e57f,color:#ffffff
 
-    class User,Terminal,Camera actor
-    class UC1,UC2,UC3,UC4,UC5,UC6,UC7,UC8,UC9,UC10,UC11,UC12,UC13,UC14 usecase
-    class Ultralytics external
+    class Student actor
+    class UC1,UC2,UC3,UC4,UC5,UC6,UC7,UC8 usecase
+    class UC9,UC10,UC11 included

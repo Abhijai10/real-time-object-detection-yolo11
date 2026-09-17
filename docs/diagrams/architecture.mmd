@@ -1,44 +1,33 @@
 flowchart TD
-    User([User at a terminal]) -->|"python -m app"| CLI
+    User([User]) -->|"python -m app"| Main
 
-    CLI["app/cli.py<br/>build_parser / parse_args<br/>AppConfig.validate"]
-    CLI -->|"validated AppConfig"| Controller
+    Main["app/main.py<br/>argument parsing + main loop"]
 
-    Controller["Application Controller<br/>app.cli.Application"]
-    CameraMod["Camera Module<br/>app/camera.py :: Camera"]
-    DetectorMod["Detection Module<br/>app/detector.py :: Detector"]
-    AnalyticsMod["Analytics Module<br/>app/analytics.py :: FpsCounter / SessionStats"]
-    ControlsMod["Controls Module<br/>app/controls.py :: ControlState"]
-    RendererMod["Rendering Module<br/>app/renderer.py :: Renderer"]
+    Main --> Camera["app/camera.py<br/>Camera"]
+    Main --> Detector["app/detector.py<br/>Detector"]
+    Main --> Analytics["app/analytics.py<br/>FpsCounter, SessionStats"]
+    Main --> Controls["app/controls.py<br/>key handling"]
+    Main --> Renderer["app/renderer.py<br/>Renderer"]
 
-    Controller --> CameraMod
-    Controller --> DetectorMod
-    Controller --> AnalyticsMod
-    Controller --> ControlsMod
-    Controller --> RendererMod
+    Camera -->|"frame"| Detector
+    Detector -->|"list of Detection"| Analytics
+    Detector -->|"list of Detection"| Renderer
+    Analytics -->|"FPS and counts"| Renderer
+    Renderer -->|"annotated frame"| Main
+    Controls -->|"Action"| Main
 
-    CameraMod -->|"BGR frame (NumPy array)"| DetectorMod
+    Detector --> YOLO["YOLO11n<br/>pretrained model<br/>(third-party: Ultralytics)"]
 
-    YOLO["YOLO11n<br/>Ultralytics + PyTorch<br/>(third-party component)"]
-    DetectorMod -->|"frame"| YOLO
-    YOLO -->|"raw boxes, class ids, confidences"| DetectorMod
-    DetectorMod -->|"list of Detection"| AnalyticsMod
-
-    AnalyticsMod -->|"FrameAnalytics + SessionStats"| Controller
-    ControlsMod -->|"ControlAction"| Controller
-    Controller --> RendererMod
-    RendererMod -->|"annotated frame"| Controller
-
-    Controller --> Window["OpenCV window<br/>live annotated video"]
-    Controller --> Outputs["outputs/<br/>snapshot_*.jpg<br/>recording_*.mp4<br/>session_summary.json"]
+    Main --> Window["OpenCV window<br/>live annotated video"]
+    Main --> Files["outputs/<br/>snapshot_*.jpg<br/>session_summary.json"]
 
     Window --> User
-    Outputs --> User
+    Files --> User
 
-    classDef original fill:#1f3b57,stroke:#7fb2e5,color:#ffffff
+    classDef mine fill:#1f3b57,stroke:#7fb2e5,color:#ffffff
     classDef third fill:#4a2f1f,stroke:#e5b57f,color:#ffffff
-    classDef entry fill:#2f4a2f,stroke:#9fe59f,color:#ffffff
+    classDef user fill:#2f4a2f,stroke:#9fe59f,color:#ffffff
 
-    class Controller,CameraMod,DetectorMod,AnalyticsMod,ControlsMod,RendererMod original
+    class Main,Camera,Detector,Analytics,Controls,Renderer,Window,Files mine
     class YOLO third
-    class CLI entry
+    class User user

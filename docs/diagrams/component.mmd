@@ -1,165 +1,69 @@
 classDiagram
-    class Application {
-        +config
-        +camera
-        +detector
-        +renderer
-        +fps_counter
-        +session
-        +controls
-        +recorder
-        +run() int
-        +handle_action(action, frame) bool
-        +print_banner()
-        +print_summary()
-    }
-
-    class AppConfig {
-        +camera
-        +model
-        +confidence
-        +iou
-        +image_size
-        +device
-        +width
-        +height
-        +output_dir
-        +max_frames
-        +display
-        +show_help
-        +save_summary
-        +validate() AppConfig
-    }
-
     class Camera {
-        +source
-        +width
-        +height
+        +int index
+        +str source
         +open() Camera
         +read() tuple
-        +release()
+        +release() None
         +describe() str
+        +is_file_source bool
         +is_open bool
-        +actual_width int
-        +actual_height int
-        +reported_fps float
     }
 
     class Detector {
-        +model_path
-        +confidence
-        +iou
-        +device
-        +image_size
+        +str model_path
+        +float confidence
+        +str device
         +load() Detector
-        +warmup(image_size)
         +detect(frame) list
         +set_confidence(value) float
-        +class_names
+        +class_names dict
         +is_loaded bool
     }
 
     class Detection {
-        +class_id int
-        +class_name str
-        +confidence float
-        +x1 float
-        +y1 float
-        +x2 float
-        +y2 float
-        +bbox tuple
-        +bbox_int tuple
+        +int class_id
+        +str class_name
+        +float confidence
+        +tuple box
         +label str
-        +as_dict() dict
     }
 
     class FpsCounter {
-        +window int
+        +int frames
         +tick(now) float
         +fps float
-        +frame_count int
-        +reset()
-    }
-
-    class FrameAnalytics {
-        +object_count int
-        +class_counts dict
-        +unique_classes tuple
-        +average_confidence float
-        +max_confidence float
-        +unique_class_count int
-        +as_dict() dict
+        +reset() None
     }
 
     class SessionStats {
-        +frames_processed int
-        +total_detections int
-        +peak_simultaneous_detections int
-        +class_totals
-        +update(analytics, fps)
-        +reset(keep_start_time)
+        +int frames
+        +int total_detections
+        +int peak_objects
+        +update(detections, fps) None
+        +reset() None
         +most_frequent_class() tuple
-        +top_classes(limit) list
+        +summary() list
         +as_dict() dict
-        +summary_lines() list
-        +average_fps float
-    }
-
-    class ControlState {
-        +confidence float
-        +step float
-        +show_overlay bool
-        +recording bool
-        +apply(action) ControlAction
-        +history tuple
-        +recording_label str
-    }
-
-    class ControlAction {
-        NONE
-        QUIT
-        SNAPSHOT
-        TOGGLE_RECORDING
-        RESET_STATS
-        CONFIDENCE_UP
-        CONFIDENCE_DOWN
-        TOGGLE_OVERLAY
     }
 
     class Renderer {
-        +palette tuple
-        +draw_detections(frame, detections)
-        +draw_analytics_overlay()
-        +draw_help_overlay(frame, lines)
-        +draw_recording_indicator(frame, recording)
-        +draw_message(frame, message)
-        +render()
-        +color_for(class_name) tuple
+        +int box_thickness
+        +draw_detections(frame, detections) None
+        +draw_stats(frame, ...) None
+        +draw_help(frame, lines) None
     }
 
-    class VideoRecorder {
-        +output_dir
-        +fps float
-        +start(frame_size, fps) Path
-        +write(frame) bool
-        +stop() Path
-        +is_recording bool
-        +frames_written int
+    class Action {
+        <<enumeration>>
+        QUIT
+        SNAPSHOT
+        RESET_STATS
+        CONFIDENCE_UP
+        CONFIDENCE_DOWN
     }
-
-    Application --> AppConfig : validates
-    Application --> Camera : owns
-    Application --> Detector : owns
-    Application --> Renderer : owns
-    Application --> FpsCounter : owns
-    Application --> SessionStats : owns
-    Application --> ControlState : owns
-    Application --> VideoRecorder : owns
 
     Detector --> Detection : creates
-    ControlState --> ControlAction : applies
-    FrameAnalytics --> SessionStats : folded into
-    FpsCounter --> SessionStats : fps sample
-    Detection --> Renderer : drawn by
-    FrameAnalytics --> Renderer : overlay text
-    SessionStats --> Renderer : overlay counters
+    FpsCounter --> SessionStats : feeds
+    Renderer --> Detection : draws
+    Camera --> Detector : frame

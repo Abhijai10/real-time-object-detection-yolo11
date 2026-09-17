@@ -1,64 +1,37 @@
 flowchart TD
-    Start([START]) --> Parse["Parse CLI arguments<br/>app.cli.parse_args"]
-    Parse --> Validate{"Configuration<br/>valid?"}
-    Validate -->|"No"| UsageError["Print usage error<br/>exit code 2"]
-    Validate -->|"Yes"| LoadModel["Load YOLO11n model<br/>Detector.load()"]
+    Start([Start]) --> Args["Read command line arguments"]
+    Args --> Load["Load the YOLO11n model"]
+    Load --> Open{"Camera opens?"}
 
-    LoadModel --> ModelOK{"Model loaded?"}
-    ModelOK -->|"No"| ModelError["Print clear error<br/>exit code 1"]
-    ModelOK -->|"Yes"| OpenCam["Initialise webcam<br/>Camera.open()"]
+    Open -->|No| Error["Print an error message<br/>and exit"]
+    Error --> Stop([End])
 
-    OpenCam --> CamOK{"Camera<br/>opened?"}
-    CamOK -->|"No"| CamError["Print actionable error<br/>exit code 1"]
-    CamOK -->|"Yes"| Warmup["Warm up the model<br/>Detector.warmup()"]
+    Open -->|Yes| Loop["Read a frame from the webcam"]
+    Loop --> Empty{"Frame read<br/>successfully?"}
 
-    Warmup --> Capture["Capture frame<br/>Camera.read()"]
-    Capture --> FrameOK{"Frame<br/>decoded?"}
-    FrameOK -->|"No"| FailureCount{"Too many<br/>consecutive failures?"}
-    FailureCount -->|"No"| Capture
-    FailureCount -->|"Yes"| Teardown
+    Empty -->|No| Lost{"Too many failed<br/>reads in a row?"}
+    Lost -->|No| Loop
+    Lost -->|Yes| Shutdown
 
-    FrameOK -->|"Yes"| Infer["YOLO inference<br/>Detector.detect()"]
-    Infer --> Extract["Extract detections<br/>boxes, class names, confidences"]
-    Extract --> Filter["Apply confidence threshold<br/>and NMS (IoU)"]
-    Filter --> UpdateAnalytics["Update analytics<br/>FpsCounter.tick()<br/>compute_frame_analytics()<br/>SessionStats.update()"]
-    UpdateAnalytics --> Draw["Draw boxes, labels and overlay<br/>Renderer.render()"]
-    Draw --> Record{"Recording<br/>active?"}
-    Record -->|"Yes"| Write["Append frame<br/>VideoRecorder.write()"]
-    Record -->|"No"| Display
-    Write --> Display
+    Empty -->|Yes| Detect["Run YOLO11n inference"]
+    Detect --> Stats["Update FPS and object counts"]
+    Stats --> Draw["Draw boxes, labels and statistics"]
+    Draw --> Show["Show the frame in the OpenCV window"]
+    Show --> Key["Check for a key press"]
 
-    Display["Display frame<br/>cv2.imshow()"]
-    Display --> Key["Read keyboard<br/>cv2.waitKey(1)"]
-    Key --> Handle["Service the action<br/>Application.handle_action()"]
-    Handle --> Action{"Which action?"}
+    Key --> Quit{"Q or ESC<br/>pressed?"}
+    Quit -->|No| Loop
+    Quit -->|Yes| Shutdown
 
-    Action -->|"S"| Snap["Save annotated snapshot<br/>outputs/snapshot_*.jpg"]
-    Action -->|"R"| ToggleRec["Start / stop recording"]
-    Action -->|"C"| Reset["Clear session statistics"]
-    Action -->|"+ / -"| Conf["Adjust confidence threshold"]
-    Action -->|"H"| Overlay["Toggle help overlay"]
-    Action -->|"none"| Continue
-    Action -->|"Q / ESC"| Teardown
+    Shutdown["Release the camera and close the window"]
+    Shutdown --> Save["Write outputs/session_summary.json"]
+    Save --> Print["Print the session summary"]
+    Print --> Stop
 
-    Snap --> Continue
-    ToggleRec --> Continue
-    Reset --> Continue
-    Conf --> Continue
-    Overlay --> Continue
+    classDef mine fill:#1f3b57,stroke:#7fb2e5,color:#ffffff
+    classDef stop fill:#2f4a2f,stroke:#9fe59f,color:#ffffff
+    classDef bad fill:#4a1f1f,stroke:#e57f7f,color:#ffffff
 
-    Continue{"Continue?"}
-    Continue -->|"Yes"| Capture
-    Continue -->|"No"| Teardown
-
-    Teardown["Release resources<br/>stop recording, release camera,<br/>destroy windows"]
-    Teardown --> Summary["Print session summary<br/>and write session_summary.json"]
-    Summary --> End([END])
-
-    classDef ok fill:#1f3b57,stroke:#7fb2e5,color:#ffffff
-    classDef bad fill:#5a1f1f,stroke:#e59f9f,color:#ffffff
-    classDef action fill:#2f4a2f,stroke:#9fe59f,color:#ffffff
-
-    class Capture,Infer,Extract,Filter,UpdateAnalytics,Draw,Display,Handle ok
-    class UsageError,ModelError,CamError bad
-    class Snap,ToggleRec,Reset,Conf,Overlay action
+    class Args,Load,Loop,Detect,Stats,Draw,Show,Key,Shutdown,Save,Print mine
+    class Start,Stop stop
+    class Error bad

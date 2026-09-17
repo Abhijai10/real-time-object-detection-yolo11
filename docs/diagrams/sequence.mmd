@@ -1,61 +1,29 @@
 sequenceDiagram
-    autonumber
     actor User
-    participant CLI as app.cli
-    participant App as Application
-    participant Cam as Camera
-    participant Det as Detector
-    participant YOLO as YOLO11n
-    participant Ana as Analytics
-    participant Ren as Renderer
-    participant Win as OpenCV window
-    participant FS as outputs folder
+    participant Main as app/main.py
+    participant Camera as app/camera.py
+    participant Detector as app/detector.py
+    participant Analytics as app/analytics.py
+    participant Renderer as app/renderer.py
 
-    User->>CLI: python -m app --camera 0 --conf 0.50
-    CLI->>CLI: parse and validate arguments
-    CLI->>App: AppConfig
-    App->>Det: load()
-    Det->>YOLO: YOLO("yolo11n.pt")
-    YOLO-->>Det: model ready, 80 classes
-    Det-->>App: loaded
-    App->>Cam: open()
-    Cam-->>App: capture ready
-    App->>Det: warmup()
+    User->>Main: python -m app
+    Main->>Detector: load()
+    Detector-->>Main: model ready
+    Main->>Camera: open()
+    Camera-->>Main: camera ready
 
-    loop Every frame until the user quits
-        App->>Cam: read()
-        Cam-->>App: ok, frame
-        App->>Det: detect(frame)
-        Det->>YOLO: predict(frame, conf, iou, imgsz, device)
-        YOLO-->>Det: raw boxes, class ids, confidences
-        Det-->>App: list of Detection sorted by confidence
-        App->>Ana: compute_frame_analytics(detections)
-        Ana-->>App: FrameAnalytics
-        App->>Ana: FpsCounter.tick()
-        Ana-->>App: measured FPS
-        App->>Ana: SessionStats.update(analytics, fps)
-        App->>Ren: render(frame, detections, analytics, fps)
-        Ren-->>App: annotated frame
-        App->>Win: imshow(annotated frame)
-        Win-->>App: waitKey(1) key code
+    loop Every frame, until Q or ESC
+        Main->>Camera: read()
+        Camera-->>Main: frame
+        Main->>Detector: detect(frame)
+        Detector-->>Main: list of Detection
+        Main->>Analytics: update(detections, fps)
+        Analytics-->>Main: FPS and class counts
+        Main->>Renderer: draw_detections, draw_stats, draw_help
+        Renderer-->>Main: annotated frame
+        Main->>User: show the frame in the OpenCV window
+        User-->>Main: key press
     end
 
-    Note over App,User: User presses S
-    App->>FS: save_snapshot(frame)
-    FS-->>App: snapshot_YYYY_MM_DD_HHMMSS.jpg
-
-    Note over App,User: User presses R
-    App->>FS: VideoRecorder.start(frame size, fps)
-    loop While recording
-        App->>FS: VideoRecorder.write(frame)
-    end
-    Note over App,User: User presses R again
-    App->>FS: VideoRecorder.stop()
-
-    Note over App,User: User presses Q or ESC
-    App->>FS: VideoRecorder.stop if active
-    App->>Cam: release()
-    App->>Win: destroyAllWindows()
-    App->>Ana: SessionStats.as_dict()
-    App->>FS: write_json session_summary.json
-    App-->>User: session summary printed in the terminal
+    Main->>Camera: release()
+    Main->>User: print the session summary

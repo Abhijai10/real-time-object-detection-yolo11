@@ -1,24 +1,15 @@
-# =============================================================================
-# Real-Time Object Detection and Scene Analytics Using YOLO11
-# Python dependencies
-#
-# Install with:
-#     pip install -r requirements.txt
-# =============================================================================
+# Real-Time Object Detection Using YOLO11
+# Install with:  pip install -r requirements.txt
 
-# --- Core runtime dependencies -----------------------------------------------
-
-# Ultralytics: provides the pretrained YOLO11 model and the inference API.
-# It also pulls in PyTorch, which performs the actual neural-network inference.
+# Ultralytics provides the pretrained YOLO11 model and the inference API.
+# It also installs PyTorch, which performs the actual inference.
 ultralytics>=8.3.0
 
-# OpenCV: webcam capture, drawing of bounding boxes and the display window.
+# OpenCV handles webcam capture, drawing and the display window.
 opencv-python>=4.9.0
 
-# NumPy: frame buffers and the synthetic test images used by the test suite.
+# NumPy is used for the frame buffers.
 numpy>=1.24
 
-# --- Development / testing dependencies --------------------------------------
-
-# pytest: runs the unit test suite.
+# pytest runs the unit test suite.
 pytest>=7.4

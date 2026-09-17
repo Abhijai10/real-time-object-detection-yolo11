@@ -594,7 +594,7 @@ real-time-object-detection-yolo11/
 ## 16. Installation
 
 ```bash
-git clone https://github.com/<your-username>/real-time-object-detection-yolo11.git
+git clone https://github.com/Abhijai10/real-time-object-detection-yolo11.git
 cd real-time-object-detection-yolo11
 ```
 

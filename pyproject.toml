@@ -35,8 +35,8 @@ dev = ["pytest>=7.4"]
 detect-yolo11 = "app.cli:main"
 
 [project.urls]
-Documentation = "https://github.com/<your-username>/real-time-object-detection-yolo11#readme"
-Source = "https://github.com/<your-username>/real-time-object-detection-yolo11"
+Documentation = "https://github.com/Abhijai10/real-time-object-detection-yolo11#readme"
+Source = "https://github.com/Abhijai10/real-time-object-detection-yolo11"
 
 [tool.setuptools]
 packages = ["app"]

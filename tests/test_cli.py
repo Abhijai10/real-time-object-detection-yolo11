@@ -59,7 +59,9 @@ def test_defaults_allow_a_zero_argument_start(tmp_path: Path) -> None:
     assert config.max_frames == 0
 
 
-def test_parsing_a_full_command_line() -> None:
+def test_parsing_a_full_command_line(tmp_path: Path) -> None:
+    output = tmp_path / "out"
+
     _args, config = parse_args(
         [
             "--camera",
@@ -79,7 +81,7 @@ def test_parsing_a_full_command_line() -> None:
             "--height",
             "720",
             "--output",
-            "out",
+            str(output),
             "--max-frames",
             "5",
         ]
@@ -92,7 +94,7 @@ def test_parsing_a_full_command_line() -> None:
     assert config.image_size == 512
     assert config.device == "cpu"
     assert (config.width, config.height) == (1280, 720)
-    assert config.output_dir == Path("out")
+    assert config.output_dir == output
     assert config.max_frames == 5
 
 

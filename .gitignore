@@ -75,6 +75,10 @@ weights/
 secrets.yaml
 secrets.yml
 
+# --- Assistant / tooling workspace data -------------------------------------
+# Internal working notes for this project. Kept on disk, never published.
+.workbuddy-ai/
+
 # --- Editors and IDEs --------------------------------------------------------
 .vscode/
 .idea/

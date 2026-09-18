@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="en" data-page-node-id="C9Ft3EBiEFN3KAjNtvtnVq">
+<head data-page-node-id="YZL7snXcudKMbCRGNGDFpf">
+  <meta charset="UTF-8" data-page-node-id="iNkRil70CelNj3WX9Proh0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" data-page-node-id="DWn1Zt8PrJNmQu16hgVFvq">
+  <meta name="docx-page-size" content="A4" data-page-node-id="Ulg8M1O08cx5sKlXuCe11I">
+  <title>Real-Time Object Detection Using YOLO11</title>
+  <style>
+  /* --- CSS Paged Media page model (front matter carries no furniture) --- */
+  @page {
+    @bottom-center { content: counter(page); }
+  }
+  @page cover {
+    @bottom-center { content: none; }
+  }
+  @page frontmatter {
+    @bottom-center { content: none; }
+  }
+  section[role="cover"] { page: cover; }
+  section[role="frontmatter"] { page: frontmatter; }
+
+  :root {
+    /* ---- typography, from the academic-paper design tokens ---- */
+    --fs-h1: var(--typography-fontSize-h1, 15pt);
+    --fs-h2: var(--typography-fontSize-h2, 14pt);
+    --fs-h3: var(--typography-fontSize-h3, 12pt);
+    --fs-body: var(--typography-fontSize-body, 12pt);
+    --fs-small: var(--typography-fontSize-caption, 10.5pt);
+    --fs-cover-title: var(--typography-fontSize-title, 18pt);
+    --ff-body: var(--typography-fontFamily-bodyLatin, "Times New Roman", serif);
+    /* NOTE: this must stay a single-level var(). The converter's CSS resolver only
+       handles one level of nesting, so var(--a, var(--b, x)) silently resolves to a
+       truncated string and the heading font is lost. The theme has no separate Latin
+       heading family, so headings use the Latin body family. */
+    --ff-heading: var(--typography-fontFamily-bodyLatin, "Times New Roman", serif);
+    --ff-code: var(--typography-fontFamily-code, "Courier New", monospace);
+    --lh-body: var(--typography-lineHeight-body, 1.5);
+    --lh-tight: 1.35;
+    --lh-snug: 1.4;
+    --fw-bold: var(--typography-fontWeight-heading, bold);
+    --fw-normal: var(--typography-fontWeight-body, normal);
+    --sp-indent: var(--spacing-indent, 2em);
+
+    /* ---- colours, from the academic-paper design tokens ---- */
+    --color-primary: var(--color-primary, #000000);
+    --color-text: var(--color-text, #000000);
+    --color-heading: var(--color-heading, #000000);
+    --color-border: var(--color-tableBorder, #000000);
+    --color-bg: var(--color-background, #ffffff);
+    --color-rule: var(--color-tableHeaderBg, #f0f0f0);
+
+    /* ---- local scale (literals are only legal inside a custom-property
+            definition, so every spacing and colour below is declared once here) ---- */
+    --color-muted: #555555;
+    --color-code-bg: #f7f7f7;
+    --sp-none: 0;
+    --sp-hair: 0.25em;
+    --sp-snug: 0.4em;
+    --sp-base: 0.6em;
+    --sp-wide: 0.9em;
+    --sp-cell-y: 0.35em;
+    --sp-cell-x: 0.6em;
+    --sp-cover-y: 0.3em;
+    --sp-cover-x: 0.9em;
+    --sp-paragraph: var(--spacing-paragraph, 0.5em);
+    --sp-section: var(--spacing-sectionGap, 1.5em);
+    --sp-block: 1em;
+    --rule-thin: 1px;
+    --rule-thick: 2px;
+    --rule-accent: 3px;
+    --tracking-eyebrow: 0.08em;
+    --page-content-width: 15.5cm;   /* A4 21cm - 3.0cm left - 2.5cm right */
+  }
+
+  * { box-sizing: border-box; margin: var(--sp-none); padding: var(--sp-none); }
+  /* `body` and `p` both map to the docx "Normal" style, and `p` wins, so Normal
+     ends up at the body size. Normal is the fallback for the one kind of text that
+     carries no size of its own: the Table of Contents, which the converter emits as
+     bare paragraphs rather than styled list items. */
+  body {
+    font-family: var(--ff-body);
+    font-size: var(--fs-body);
+    line-height: var(--lh-body);
+    color: var(--color-text);
+    background: var(--color-bg);
+  }
+
+  h1, h2, h3 { font-family: var(--ff-heading); font-weight: var(--fw-bold); color: var(--color-heading); }
+  h1 { font-size: var(--fs-h1); margin-bottom: var(--sp-block); }
+  h2 { font-size: var(--fs-h2); margin-top: var(--sp-section); margin-bottom: var(--sp-paragraph); }
+  h3 { font-size: var(--fs-h3); margin-top: var(--sp-block); margin-bottom: var(--sp-paragraph); }
+
+  p { font-family: var(--ff-body); font-size: var(--fs-body); line-height: var(--lh-body);
+      margin-bottom: var(--sp-paragraph); text-indent: var(--sp-indent); text-align: justify; }
+  li { font-family: var(--ff-body); font-size: var(--fs-body); line-height: var(--lh-body); margin-bottom: var(--sp-hair); }
+  ul, ol { margin-bottom: var(--sp-paragraph); padding-left: var(--sp-indent); }
+  a { color: var(--color-primary); text-decoration: none; }
+  strong { font-weight: var(--fw-bold); }
+  code { font-family: var(--ff-code); font-size: var(--fs-small); }
+  pre.code-block {
+    font-family: var(--ff-code);
+    font-size: var(--fs-small);
+    line-height: var(--lh-tight);
+    white-space: pre;
+    background: var(--color-code-bg);
+    border-left: var(--rule-accent) solid var(--color-border);
+    padding: var(--sp-base) var(--sp-wide);
+    margin-bottom: var(--sp-block);
+    text-align: left;
+    text-indent: var(--sp-none);
+  }
+  pre.code-block code { font-size: var(--fs-small); }
+
+  /* --- Cover (every block restates its own text-align, because docx applies no
+         inheritance and the global p{justify} would otherwise stretch these lines) --- */
+  .cover-eyebrow { text-align: center; text-indent: var(--sp-none); font-size: var(--fs-small);
+                   color: var(--color-muted); letter-spacing: var(--tracking-eyebrow);
+                   margin-bottom: var(--sp-block); }
+  .cover-title { text-align: center; font-size: var(--fs-cover-title);
+                 margin-top: var(--sp-section); margin-bottom: var(--sp-paragraph); }
+  .cover-subtitle { text-align: center; text-indent: var(--sp-none); font-size: var(--fs-body);
+                    color: var(--color-muted); margin-bottom: var(--sp-section); }
+  .cover-meta { text-align: center; margin-top: var(--sp-section); }
+  .cover-meta-line { text-align: center; text-indent: var(--sp-none); font-size: var(--fs-body);
+                     line-height: var(--lh-snug); margin-bottom: var(--sp-hair); }
+  .cover-note { text-align: left; margin-top: var(--sp-section); }
+  .cover-note-body { text-align: left; text-indent: var(--sp-none); font-size: var(--fs-small);
+                     line-height: var(--lh-snug); margin-bottom: var(--sp-paragraph); }
+
+  /* --- Abstract --- */
+  .abstract { text-align: center; }
+  .abstract-body { text-align: justify; text-indent: var(--sp-none); }
+
+  /* --- Table of contents (rendered by the converter as indented link paragraphs) --- */
+  .doc-toc { margin-top: var(--sp-section); margin-bottom: var(--sp-section); }
+  .toc-title { text-align: center; text-indent: var(--sp-none); font-weight: var(--fw-bold);
+               font-size: var(--fs-h2); margin-bottom: var(--sp-paragraph); }
+  .toc-list, .toc-list ol, .toc-list ul { list-style: none; padding-left: var(--sp-none); }
+  .toc-list li { text-indent: var(--sp-none); font-size: var(--fs-small);
+                 line-height: var(--lh-snug); margin-bottom: var(--sp-hair); }
+
+  /* --- Three-line tables (no vertical rules) --- */
+  .three-line-table { border-collapse: collapse; width: 100%; margin-bottom: var(--sp-block); }
+  .three-line-table caption { font-size: var(--fs-small); margin-bottom: var(--sp-snug); text-align: left; }
+  .three-line-table thead tr:first-child { border-top: var(--rule-thick) solid var(--color-text); }
+  .three-line-table thead tr:last-child { border-bottom: var(--rule-thin) solid var(--color-text); }
+  .three-line-table tbody tr:last-child { border-bottom: var(--rule-thick) solid var(--color-text); }
+  .three-line-table td, .three-line-table th { font-family: var(--ff-body); font-size: var(--fs-small);
+      line-height: var(--lh-snug); padding: var(--sp-cell-y) var(--sp-cell-x);
+      text-align: left; vertical-align: top; }
+  .three-line-table th { font-weight: var(--fw-bold); }
+
+  /* --- Figures --- */
+  figure { margin: var(--sp-block) var(--sp-none); text-align: center; }
+  figure img { max-width: 100%; }
+  figcaption { font-size: var(--fs-small); color: var(--color-muted);
+               margin-top: var(--sp-snug); text-align: center; }
+</style>
+</head>
+<body data-page-node-id="m26SDvxXefTg8sh4RjxdJc">
+<section role="cover" class="cover" data-page-node-id="FaDRzdhkgXwIDdpHxVFE30">
+  <div class="cover-body" style="text-align: center;" data-page-node-id="tBVACKvzt3AKM1m0ZycXUC">
+    <p class="cover-eyebrow" style="text-align: center; text-indent: 0;" data-page-node-id="JnkIx7xpvS38ivLmuDMBkc">Computer Vision &middot; Final Project Report</p>
+    <h1 class="cover-title" style="text-align: center;" data-page-node-id="prRysMw6bQDXTlS42FKPF8">Real-Time Object Detection Using YOLO11</h1>
+    <p class="cover-subtitle" style="text-align: center; text-indent: 0;" data-page-node-id="zCDxjgNWfGTHiesMmf8G5y">A webcam application for real-time object
+      detection using a pretrained YOLO11n model</p>
+  </div>
+  <div class="cover-meta" style="text-align: center;" data-page-node-id="TWBQPvW9mPzR4KD8qNCgCi">
+<p class="cover-meta-line" style="text-align: center; text-indent: 0;" data-page-node-id="4ILD6WvhaQic2ctotDyBoe"><strong data-page-node-id="fh2rIq2MjkE2zVzN7ShQhF">Project title:</strong> Real-Time Object Detection Using YOLO11</p>
+<p class="cover-meta-line" style="text-align: center; text-indent: 0;" data-page-node-id="i5Pd6t8EBQdh0CpK60EtjK"><strong data-page-node-id="ll2eToYI4cFSVN8kYaW7WB">Student name:</strong> Abhijai Raghuvanshi</p>
+<p class="cover-meta-line" style="text-align: center; text-indent: 0;" data-page-node-id="CSCxV2zX6zV7Znf5mCWAzZ"><strong data-page-node-id="N0GG67tFFyMbEoM8EQnJ2f">Course / subject:</strong> Computer Vision</p>
+<p class="cover-meta-line" style="text-align: center; text-indent: 0;" data-page-node-id="vixv3fiJR93plK0o7p21bs"><strong data-page-node-id="m5uOawKBi3hOHHzqhD7DOI">Institution:</strong> <em data-page-node-id="oAYfNosnGE0exQgeVs8TCP">[Insert institution name]</em></p>
+<p class="cover-meta-line" style="text-align: center; text-indent: 0;" data-page-node-id="qPqbSOf4rsEny4A2dQzCtn"><strong data-page-node-id="7wNAkT3Qaa5grkxnPFBd0u">Academic year:</strong> 2025–2026</p>
+<p class="cover-meta-line" style="text-align: center; text-indent: 0;" data-page-node-id="eCO4p6x9ccVS1GXfK8fcGx"><strong data-page-node-id="HgpZf79AvBY8V9JBvEnfDU">Guide / supervisor:</strong> <em data-page-node-id="4wh0B1zNwcuZCkdcXxB08G">[Insert supervisor name]</em></p>
+<p class="cover-meta-line" style="text-align: center; text-indent: 0;" data-page-node-id="T1ta6cuHUHDyWufOZtAes2"><strong data-page-node-id="HlYDoCyzffKa4D97GXACPp">Department:</strong> <em data-page-node-id="tFdaD2rWu4mwQVTCVaIaoT">[Insert department]</em></p>
+<p class="cover-meta-line" style="text-align: center; text-indent: 0;" data-page-node-id="5AgqisENAb8QRbHbGgUQeo"><strong data-page-node-id="F8yJyEuG1Iff23ueIM8Nm2">Submission date:</strong> <em data-page-node-id="YHM4fpxGmnidb5BvdT8CEx">[Insert date]</em></p>
+  </div>
+  <div class="cover-note" style="text-align: left;" data-page-node-id="XT4pN9tj0PFLoPoS2p1ITz">
+<p class="cover-note-body" style="text-align: left; text-indent: 0;" data-page-node-id="eG1L0ljoDoP1pbkBbVN84b"><strong data-page-node-id="Wq8ld8iOm7SRq6zqMCSy2M">Repository:</strong> https://github.com/Abhijai10/real-time-object-detection-yolo11</p>
+<p class="cover-note-body" style="text-align: left; text-indent: 0;" data-page-node-id="eQ3KB4Q9X0VWkeEecQRzVH"><strong data-page-node-id="8TDeESalA29t1k265WW0fp">A note on authorship.</strong> This report describes an application built around a pretrained object detection model. The model, YOLO11, was developed and trained by Ultralytics and is used here as a third-party component.</p>
+<p class="cover-note-body" style="text-align: left; text-indent: 0;" data-page-node-id="0yuwcHt0az3E8AJOEMsFCW">The work presented in this report is the software application that surrounds that model: the capture loop, the integration with the model, the processing of its output, the visualisation, the statistics, the keyboard controls, the file output and the test suite. No part of the neural network was designed, trained or modified as part of this project.</p>
+  </div>
+</section>
+
+<section role="frontmatter" data-page-node-id="6WywKip30ijVPfLUeAvCMx">
+<h2 id="abstract" class="abstract" data-page-node-id="c3lz53NSk8D3NpkFEJiIsd">Abstract</h2>
+<p class="abstract-body" data-page-node-id="3I1LggMqFvZ8XeUh56tG60">This report describes the design, implementation and testing of a real-time object detection application for a webcam, developed as a Computer Vision project. The application captures video from a webcam with OpenCV, passes each frame through a pretrained YOLO11n model from Ultralytics, and draws the resulting bounding boxes, class names and confidence values onto the live video before it is displayed.</p>
+<p class="abstract-body" data-page-node-id="KxYGEcpAnZqWGnkEBrav5C">A live overlay reports the frame rate and the object counts for the current frame. Keyboard controls allow the user to quit, save an annotated snapshot, reset the statistics and adjust the confidence threshold, and the application writes a session summary to a JSON file when it exits.</p>
+<p class="abstract-body" data-page-node-id="XR2B2Zvbmhzk5CWfM1Xaty">The detection model is a third-party component and is used exactly as published; no part of the neural network was designed, trained or modified here. The work presented is the application around the model: the capture loop, the integration with the model, the handling and visualisation of its output, the statistics, the controls, the file output and a suite of 62 unit tests.</p>
+<p class="abstract-body" data-page-node-id="QEzlMdikihFWMBscEyOPID">The project does not claim a formal accuracy evaluation, because no labelled evaluation dataset exists for it. The results reported are the measured behaviour of one real webcam session on this machine.</p>
+<nav class="doc-toc" aria-label="Table of contents" data-page-node-id="dp2gMXpgk7Z0A3Js6DwYci">
+<p class="toc-title" data-page-node-id="QydU6XroiHTQwXPBdAlAkW">Table of Contents</p>
+<ol class="toc-list" data-page-node-id="5jeeLzEhVxuOGGElLgh7wx">
+<li data-page-node-id="Aiq5IauI7EmLpuonmN276Q"><a href="#abstract" data-page-node-id="KCHHIC2gr4hmi8mptzTABA">Abstract</a></li>
+<li data-page-node-id="cIBEO5eEXmtNmBfHmmAlBg"><a href="#section-2" data-page-node-id="JYfGOSNTzHvymWGFQ562eL">2. Introduction</a></li>
+<li data-page-node-id="je8fdtBwSmWFgFXPB0A9cr"><a href="#section-3" data-page-node-id="3p755qraXY05aL1nswbfA5">3. Problem Statement</a></li>
+<li data-page-node-id="xTfToxqbjAErTLKXRzDtnJ"><a href="#section-4" data-page-node-id="XwWyrtDKCG4BCCiXh86Eoh">4. Objectives</a></li>
+<li data-page-node-id="Vgu1nuT8hFv1KnBSFD1X9r"><a href="#section-5" data-page-node-id="E7RVDTHn0m7ugTk2XGtyko">5. Scope</a></li>
+<li data-page-node-id="QnpE3OHfh5HbOXy0JezF9f"><a href="#section-6" data-page-node-id="9Gzepkqo6FgYoN785DRbMI">6. Functional Requirements</a></li>
+<li data-page-node-id="K5EN1cfxRA0xoxD6uZxLtE"><a href="#section-7" data-page-node-id="OSkIQSjCOAzHhfrKIax5fW">7. Non-Functional Requirements</a></li>
+<li data-page-node-id="LJIyFHwrJlXcFAM7KBc8Ra"><a href="#section-8" data-page-node-id="vDIgcWkutMlAUta0drQjYA">8. Technology Stack</a></li>
+<li data-page-node-id="FgjQDyLtOAZLniYBVmfu6g"><a href="#section-9" data-page-node-id="bxZb3zKUMEU6LCyAGgBgbe">9. Dataset and Model Information</a></li>
+<li data-page-node-id="CiJiNPfcjY34TxNhBZGDIY"><a href="#section-10" data-page-node-id="N6DsetBXzkBtYq5JWlBoOb">10. Model Selection Rationale</a></li>
+<li data-page-node-id="txS8AdInVvCiNPh69CgGMu"><a href="#section-11" data-page-node-id="b5i2aASP43nC2NIh4uEuBC">11. System Architecture</a></li>
+<li data-page-node-id="VOmxZ5DCe4Edooc59PjhW4"><a href="#section-12" data-page-node-id="DZzZmLsFtpBkxfAC364CH7">12. Project Module Description</a></li>
+<li data-page-node-id="9x9sWM2XoCQ7FnTdgLlLRc"><a href="#section-13" data-page-node-id="BBhdyWFDAbkVUAM8d55xoq">13. Workflow and Methodology</a></li>
+<li data-page-node-id="bH2ri25YfHcxM9H5xhxC0e"><a href="#section-14" data-page-node-id="Z1MaQOtWUbK5u9IFqbUHxb">14. Design Diagrams</a></li>
+<li data-page-node-id="Ytl06ysWi98zIwx6B94xUd"><a href="#section-15" data-page-node-id="amZCsZYQWATriRzZa3tZqo">15. Implementation</a></li>
+<li data-page-node-id="CbqYzp3sRyHxRfsSbzFLIN"><a href="#section-16" data-page-node-id="3oUVwJRIWa1kGbTGHlQNaF">16. User Controls</a></li>
+<li data-page-node-id="7khmkEnDPQFGRlLHuQERno"><a href="#section-17" data-page-node-id="4a1cZjUE7zcwL0cWIaCFIB">17. Testing</a></li>
+<li data-page-node-id="vCeZjuEEWQWgStA2GyqEKR"><a href="#section-18" data-page-node-id="MV237EMQHWM0jnpVKL5gbb">18. Evaluation Methodology</a></li>
+<li data-page-node-id="Reg8338qGT6Vz131Io3PTC"><a href="#section-19" data-page-node-id="uHTOgVDmlcCqTRAuveYmjM">19. Actual Experimental and Demonstration Results</a></li>
+<li data-page-node-id="ZFAxR4vVwIlYtFFeDiBBuC"><a href="#section-20" data-page-node-id="aZT9aEQJ5pMTctLYX0zK1r">20. Screenshots and Evidence</a></li>
+<li data-page-node-id="lT2hHUskfUKqne2590IfJr"><a href="#section-21" data-page-node-id="F0VAV3L2MufFBTRMgWLslD">21. Limitations</a></li>
+<li data-page-node-id="LmT6obhUFAdeXgPMvje9FP"><a href="#section-22" data-page-node-id="4G04kb05YHRUR3j1AH3llA">22. Challenges Encountered</a></li>
+<li data-page-node-id="3rEEFeHoKbDg9ACdQkdAs4"><a href="#section-23" data-page-node-id="upfNA6SBBdiGcDgHokzMs9">23. Learning Outcomes</a></li>
+<li data-page-node-id="SSIhEDspVqAqlljL1Z0l9f"><a href="#section-24" data-page-node-id="MgEq6OIQ8ErQjr1ZouyT7y">24. Future Enhancements</a></li>
+<li data-page-node-id="9qKSorxyaCkRGhqLvIUR6A"><a href="#section-25" data-page-node-id="HcFDPrkkLV61YfvWqUB6Xy">25. Conclusion</a></li>
+<li data-page-node-id="umZcLA2emgj27HeQNifi5p"><a href="#section-26" data-page-node-id="1RvU04tkYCmwGaVp6niZ5y">26. References</a></li>
+<li data-page-node-id="A22fShrYWGWEtiIszVYhCz"><a href="#section-27" data-page-node-id="YJgV304GRpAhKzuAdZTTJJ">27. Appendix</a></li>
+</ol>
+</nav>
+</section>
+
+<section role="body" data-page-restart="1" data-page-node-id="8tHEdhkxOuDoAOZ1fpZTdo">
+<h2 id="section-2" data-page-node-id="JRdZW7iIfkCtyebYU6yOCd">2. Introduction</h2>
+<p data-page-node-id="IALtsubtu2c0eMPRkAQsnW">Computer Vision is a broad field, and this report only touches the parts of it that the project uses. This section introduces those parts, states the problem the project addresses, and explains why a webcam is a suitable device for it.</p>
+<h3 data-page-node-id="LlIygnD5Jiphv6BwNpW7qu">2.1 Computer Vision</h3>
+<p data-page-node-id="EkwGTO1JYLGHIylvaOlz1D">Computer Vision is the field of computer science concerned with enabling computers to extract useful information from images and video. Where a human recognises a chair in a photograph without conscious effort, a computer receives only a grid of numbers describing pixel intensities. Computer Vision develops the methods that turn those numbers into meaningful descriptions of a scene.</p>
+<p data-page-node-id="TzCrP9RBGSY2FoASV44fqb">Typical Computer Vision tasks include image classification (what is in this image?), object detection (what is in this image, and where?), segmentation (which pixels belong to which object?) and tracking (how do objects move between frames?). This project is concerned with object detection.</p>
+<h3 data-page-node-id="fka9Z7zgEI9oAMWqpTtOGV">2.2 Object Detection</h3>
+<p data-page-node-id="wPdFPwyxdR0Fyf7FH0x0cn">Object detection answers two questions at once: <em data-page-node-id="Gdf5XMACI2VvU1X0AO7LOK">which</em> objects are present in an image, and <em data-page-node-id="3WDvpon6C7EW2Da9RO6VCd">where</em> they are located. The answer is normally expressed as a set of bounding boxes, each carrying a class label and a confidence score. The confidence score is a number between 0 and 1 that expresses how strongly the model associates that region of the image with that class.</p>
+<p data-page-node-id="1pSFOU0f9eyAGH1EFj4Fa7">Object detection is considerably harder than classification, because the model must locate objects as well as name them, and because a single image may contain several objects of different classes at different scales.</p>
+<h3 data-page-node-id="l4tGTzbrUL0sByE85ETGpt">2.3 Real-Time Detection</h3>
+<p data-page-node-id="KhRCiRJbRYYHq3318EfCj5">A real-time detection system applies an object detection model to a continuous stream of frames as they arrive, rather than to a single stored image. The practical consequence is a time budget: if the camera delivers 30 frames per second, the system has roughly 33 milliseconds per frame in which to capture, analyse, annotate and display the result. If processing takes longer than that budget, the displayed video becomes visibly delayed or jerky.</p>
+<p data-page-node-id="sxr8dXXogpvuTRBXU9CHNV">Real-time detection therefore involves a trade-off between accuracy and speed that a single-image system does not face. This trade-off is the reason that the choice of model variant matters, and it is discussed in Section 10.</p>
+<h3 data-page-node-id="tv9MxMqXXel7QDrCMPkeVC">2.4 Why Webcam-Based Detection is Useful</h3>
+<p data-page-node-id="I3VJUVy69mSxphwcIduzrh">A webcam is an inexpensive, universally available image sensor. Applying object detection to a webcam feed produces an immediately useful and immediately understandable result: a live view of the world with the recognised objects labelled.</p>
+<p data-page-node-id="dAIbAq33L22XnCsOoKPAiw">Because the feedback is visual and instantaneous, a webcam application is also an effective way to observe how a detection model behaves in practice — which classes it recognises reliably, which it confuses, and how its behaviour changes with lighting, motion and distance.</p>
+<h3 data-page-node-id="8FIlykZShtxWaRGJQhQKls">2.5 The Role of Deep Learning Models such as YOLO</h3>
+<p data-page-node-id="JK0VhH74vZDbHUYyOq8BmL">Modern object detection is dominated by deep convolutional neural networks. Among these, the YOLO ("You Only Look Once") family, introduced by Redmon et al. (2016), takes a single-stage approach: one forward pass through the network produces all detections at once, rather than proposing candidate regions and classifying them in a separate step. This single-stage design is what makes YOLO models fast enough for real-time use.</p>
+<p data-page-node-id="GgVKkBTS8kElTDt9AVJqyt">YOLO11 is a recent member of that family, released by Ultralytics in September 2024. The Ultralytics library provides pretrained YOLO11 weights and a compact Python API for running inference, which allows a student project to concentrate on the application rather than on implementing a network from scratch.</p>
+<h2 id="section-3" data-page-node-id="NDRoHT3YQ3yV7wtG4u9lWM">3. Problem Statement</h2>
+<p data-page-node-id="VsmUT3gZGteHITP3SMapcd">A camera on its own only records what it sees. It cannot report <em data-page-node-id="sH6wo6Uo05Skc7MxkgxFhI">what</em> is in the picture. Doing that manually does not scale: watching a live video feed and writing down every object that appears is slow and impossible to keep up with.</p>
+<p data-page-node-id="0kg7phFVBoC8KtS3Nlnb1L"><strong data-page-node-id="swKSivBGYCDkQPrzD1jl97">A system is therefore required that can capture live webcam frames, detect common objects in real time using a pretrained object detection model, display the detections, and provide simple live statistics.</strong></p>
+<p data-page-node-id="Qrgx0sU48sIksVuHpPqBmi">The system must run from a single command on an ordinary laptop, must make the detection results readable at a glance, and must allow the user to influence its behaviour while it is running.</p>
+<h2 id="section-4" data-page-node-id="0a4ZvXHvZ8e10ThQgTQmc0">4. Objectives</h2>
+<p data-page-node-id="UXk6XX1KeGXB4DHALoLXZp">The objectives of the project are:</p>
+<ol data-page-node-id="IOOLyElJTvC3H4aI4WRBrH"><li data-page-node-id="c7BHf1aQh6kfCgE57tJKFz">To capture live video from a webcam using OpenCV.</li><li data-page-node-id="ud4rkYWWWCX3iWwame8Kwh">To perform object detection on incoming frames using a pretrained YOLO11n model.</li><li data-page-node-id="RhVnsuxHN7iGJYxLjMQDJT">To display bounding boxes, class names and confidence scores on the live video.</li><li data-page-node-id="DaT5CHCGkRjrV1m1kEpWzi">To calculate basic real-time statistics: frame rate, object count and per-class</li><li data-page-node-id="woy0EPr0qXCnTaMYVTKnjO">   counts.</li><li data-page-node-id="mkF7mHuPZRkYgIZHzKKc99">To allow simple runtime controls, so that the user can save a snapshot, clear the</li><li data-page-node-id="jiQ7r6geIG6SCu0EvAZoPo">   statistics and adjust the confidence threshold without restarting the program.</li><li data-page-node-id="aGhmNYXvisVH41W9YHWOIl">To save annotated snapshots of the current frame.</li><li data-page-node-id="0bmCXalwrbWFFoE0V9GQmP">To maintain a modular and testable implementation, in which each concern is</li><li data-page-node-id="BtHvyvhdeeujGch4QMtm9Y">   isolated in its own module and covered by unit tests.</li></ol>
+<h2 id="section-5" data-page-node-id="DronQ4Fr5ciNDJUNxuzGK4">5. Scope</h2>
+<p data-page-node-id="uvtbBVzCwFNxZaeOZP57Ri">The scope of the project is defined as much by what it leaves out as by what it includes. Both are stated explicitly below, so that the boundary of the work is unambiguous.</p>
+<h3 data-page-node-id="6YCscKZs4toGJuNv38zABD">5.1 Included in the Scope</h3>
+<ul data-page-node-id="YjAWZqv7Ht2mK668hOJ5o0"><li data-page-node-id="Bx75X4dcU4o1XgmwH6nzAS">Capture from a single webcam.</li><li data-page-node-id="rpR38jLsCTtAVMyxPt2XFW">Object detection with the pretrained YOLO11n model.</li><li data-page-node-id="hHjZSiXQ85LrH1nYiGo1Mr">Detection restricted to the 80 object classes of the COCO dataset.</li><li data-page-node-id="vEP2bpEgt7C9gK3MMGlhj0">Real-time detection on each incoming frame.</li><li data-page-node-id="NO9bndHwTS8uZzFdaDv59h">Visualisation of bounding boxes, class names and confidence scores.</li><li data-page-node-id="GHF2W4gQyFB74EdrratAbU">Basic live analytics: frame rate, object count and per-class counts.</li><li data-page-node-id="9ERmaKZT8DoCZRdnCXmnoc">Keyboard controls for quitting, snapshots, clearing statistics and adjusting the</li><li data-page-node-id="0hDL8dFZlHhHYHavvapoyM">  confidence threshold.</li><li data-page-node-id="qrqGQBr1hCLnGvB9V9rEy2">Saving annotated snapshots to disk.</li><li data-page-node-id="aLHb3EZ58p1eGpG7gUwU6Z">A session summary written to a JSON file on exit.</li></ul>
+<h3 data-page-node-id="8qKXEykFOh0qKikxF4NPiZ">5.2 Excluded from the Scope</h3>
+<p data-page-node-id="dTEPJJPNY9CMdoS4a63FTZ">The following are deliberately <strong data-page-node-id="0EQfspPwqjdNoNWphwA7UK">not</strong> part of the project:</p>
+<ul data-page-node-id="lntXtgCSY6X563AjLxuMiH"><li data-page-node-id="U9weuIh37YrWZzvw12kA2o">Custom training or fine-tuning of a detection model.</li><li data-page-node-id="sWshfzp6IOoMgKWgF9nHAu">Object tracking between frames.</li><li data-page-node-id="78x1dUx6WiG7yD86lgmKbv">Multi-camera processing.</li><li data-page-node-id="AiGwSR4x2iMSQApbQeaKMX">Image upload.</li><li data-page-node-id="rFvUGh8n9AkzaZ51bGTb86">Batch processing of stored images or video files.</li><li data-page-node-id="WQH0GtZhIFrZSwNgC7kDg4">Cloud deployment.</li><li data-page-node-id="NHWAew1itBasetyPusLy2S">A web dashboard or any graphical user interface beyond the OpenCV window.</li><li data-page-node-id="bU1R25KMCsACQwzkYL2QlG">Distance estimation.</li><li data-page-node-id="wpt7ZcfuTuPRzcGqiEXriY">Voice control.</li></ul>
+<p data-page-node-id="xvcaTxc0dSwm09KCrsNNc9">The exclusions matter as much as the inclusions: they keep the project to a size and complexity appropriate to a single-semester undergraduate piece of work, and they allow the included functionality to be implemented and tested properly.</p>
+<h2 id="section-6" data-page-node-id="Fa2x0nTrHsiK0zNa2b8Uk0">6. Functional Requirements</h2>
+<p data-page-node-id="G9htdcQdCkE6VwCkPQXmaT">Each requirement is stated in terms of its input, its processing and its output.</p>
+<h3 data-page-node-id="qyvlIJppoPqVjHMpkpyLlz">FR1 — Webcam Capture</h3>
+<table class="three-line-table" data-page-node-id="pYFw1zKaWtWHtDqiihnt3V">
+<thead data-page-node-id="LfA322KnCBu6e7dDvdzwNe"><tr data-page-node-id="GdozlCJv03zVNWMJrUntn5"><th data-page-node-id="fS7QG968manVm6ltc0VvZE">Aspect</th><th data-page-node-id="MzoDehxwXjrFKA66Fg9qpG">Description</th></tr></thead>
+<tbody data-page-node-id="9CWVkw7toGVDQClMPiLDop">
+<tr data-page-node-id="ZdEUQdqkIhThCJcVZslT6h"><td data-page-node-id="pAFU5yevlzOBE1iZSQUfci">Input</td><td data-page-node-id="zTkx7pHVckobREN3BmcZCh">A camera device index supplied on the command line (default <code data-page-node-id="zkpCsOB3uTkZLwxPF3qVSq">0</code>), and optionally a requested width and height.</td></tr>
+<tr data-page-node-id="JJ48PiyHqRhqosE5C5WJ7N"><td data-page-node-id="e9q7M9UOxaihZF8EkHNLGZ">Processing</td><td data-page-node-id="mmQPTkaOVSW10N2MKyPtmH">The camera is opened through <code data-page-node-id="XcudUQEMwptEg0cqn6geH5">cv2.VideoCapture</code>. On macOS the AVFoundation backend is requested, on Windows DirectShow, and on Linux the default backend. If the requested backend is rejected by the driver, OpenCV is allowed to choose.</td></tr>
+<tr data-page-node-id="HkNNUTrfEDus59GPEwhCrD"><td data-page-node-id="zsxh5O4FRVgiO6TYaDx3u7">Output</td><td data-page-node-id="HaZc4tNjNiC5SiBaBtBfBc">A sequence of BGR frames, or a <code data-page-node-id="KQjOgEgTPc9kL8eVCmcAFY">CameraError</code> carrying an explanation of the likely causes if the device cannot be opened.</td></tr>
+</tbody></table>
+<h3 data-page-node-id="Jlua7dKLBFV0s5ceR8XtzJ">FR2 — Object Detection</h3>
+<table class="three-line-table" data-page-node-id="RrEmqXGP4GgGPSQzGBkAIb">
+<thead data-page-node-id="ybfoliRwPAxIVEYRZR5YUG"><tr data-page-node-id="v1s7r94UuUGfUqEssOUWNm"><th data-page-node-id="P1j4EXlx9960A1ntUvqWNB">Aspect</th><th data-page-node-id="xx5TeDyGEZieUjDL5HUuBL">Description</th></tr></thead>
+<tbody data-page-node-id="BHF4tfOdhRl3P96Rv91RXY">
+<tr data-page-node-id="WFSq6KAKa5m7eBNHVMeoNQ"><td data-page-node-id="YUw5pzOaRziDDNHgGSJ7v8">Input</td><td data-page-node-id="Ve1QZhnhy8f42WL94Kcrcs">A single BGR frame.</td></tr>
+<tr data-page-node-id="9ZgF1p468n1GDtpOJzn9nR"><td data-page-node-id="kEi3YHcBGlzsjJALyBk6PN">Processing</td><td data-page-node-id="1tWy9XvYfHGER0HSrTfYmj">The frame is passed to the pretrained YOLO11n model through the Ultralytics API, with the current confidence threshold and the inference resolution (640 pixels).</td></tr>
+<tr data-page-node-id="93Qd82wKFqIxPJDk0jkKsN"><td data-page-node-id="r1MlLplw3DBrkFvK4nZXlw">Output</td><td data-page-node-id="SFCf1JP3eTVyxub7cV1peB">A list of <code data-page-node-id="6cm6cJYg6J7UtKDvtNvo7e">Detection</code> objects, each holding a class index, a class name, a confidence score and a bounding box, ordered most-confident first.</td></tr>
+</tbody></table>
+<h3 data-page-node-id="FYHAVxx1a94J0fbm07WdvP">FR3 — Detection Visualisation</h3>
+<table class="three-line-table" data-page-node-id="cx0moMBwrduqwcIDmNJoLK">
+<thead data-page-node-id="QghHFOlY8GO2fZlJLvk1zf"><tr data-page-node-id="Q8C9jELRXQu2sk4msyoG5E"><th data-page-node-id="pdHonCdaQlBE8uKBxsVCrA">Aspect</th><th data-page-node-id="dcJI6FqGRxBjtpttVQlMmO">Description</th></tr></thead>
+<tbody data-page-node-id="Mgei3oHVfud8EhxjBjQSsj">
+<tr data-page-node-id="nNkCHIE9gKODeTFByHZrhV"><td data-page-node-id="6CCcxdbwEJrHTSvFCMbKGH">Input</td><td data-page-node-id="ZXEPZ7Ar3A5KI6lP7bqcVK">The frame and the list of detections for that frame.</td></tr>
+<tr data-page-node-id="4dHBZ3jPMYGmnMUsqIl1ED"><td data-page-node-id="TAg4bTUdUDGog2qWBzdnbP">Processing</td><td data-page-node-id="6Q7GVAt8uxQF9EhCpsxutK">Each box is drawn with a colour derived from a checksum of its class name, so a class always receives the same colour. A filled label rectangle is drawn above the box, containing the class name and the confidence to two decimal places. Boxes are clamped to the frame boundary.</td></tr>
+<tr data-page-node-id="zmsgeXUzJjzJAjjUexmiDT"><td data-page-node-id="hhWd3J03NySebULDhzTB2I">Output</td><td data-page-node-id="SI1amuJfBuz9IDq6Nz3Scl">The same frame, modified in place, ready for display.</td></tr>
+</tbody></table>
+<h3 data-page-node-id="Jhet5eMru5rokeIZb05AF9">FR4 — Real-Time Analytics</h3>
+<table class="three-line-table" data-page-node-id="IQZVJORsW3jwqlqEdeFFEN">
+<thead data-page-node-id="PwiDSmGk7EuekVGf9fpdCh"><tr data-page-node-id="0QpZdqdINvtGnhDSRd0M8B"><th data-page-node-id="C7zICG3nrqmFePHzUVPFde">Aspect</th><th data-page-node-id="3EomkLHPEB00OEojDp2MFD">Description</th></tr></thead>
+<tbody data-page-node-id="T9Pd8O2aDUBHff30lp2BIF">
+<tr data-page-node-id="bmO3763GoG1UBatWCHWOlj"><td data-page-node-id="gmqQ3pjv3UAwDERFFkFCp7">Input</td><td data-page-node-id="In9cKPB7IS9lwtgIiXrk09">The list of detections for the frame and the current timestamp.</td></tr>
+<tr data-page-node-id="J5SJzlG9UPHicMayw65EXl"><td data-page-node-id="utkmFw5gaVjf8XOY8HxCax">Processing</td><td data-page-node-id="ITb3SLTPQWQOlq5ycr0iC1">The frame rate is computed as the reciprocal of the mean interval between recent frames. Object counts, per-class counts, peak object count, average confidence and running totals are accumulated for the session.</td></tr>
+<tr data-page-node-id="EgG16TELjKIgphdC26rhfh"><td data-page-node-id="RosSKW6UN0EIC8fLvVip8V">Output</td><td data-page-node-id="K4Ga2R1EOpgONuLi0ZzC5s">The current FPS, the per-class counts for the frame, and the accumulated session statistics.</td></tr>
+</tbody></table>
+<h3 data-page-node-id="xYNMWxCZFWSOx6b1EbjHcG">FR5 — User Controls</h3>
+<table class="three-line-table" data-page-node-id="086rNF3pJwbHGImCJ7CPLJ">
+<thead data-page-node-id="OGGzJyH8PPmGfI4bMISajH"><tr data-page-node-id="fHqkzYD2UeEIDkSNWN5GCI"><th data-page-node-id="CgUFdu8RuYPNpKWEe3q5Bf">Aspect</th><th data-page-node-id="u70hrfV0nJ6YVQ6AxZIdll">Description</th></tr></thead>
+<tbody data-page-node-id="zB0U7GdhDejK6jAl9osABc">
+<tr data-page-node-id="DkV6TlT1R3cFyX1hW46k17"><td data-page-node-id="zet0nygHf7G8Tr4tLzkpFa">Input</td><td data-page-node-id="f0Qc4ZcEtbcHWEFLbYnPzQ">The integer returned by <code data-page-node-id="Emz3NgmtDuALVFKVaNTHwp">cv2.waitKey(1)</code>.</td></tr>
+<tr data-page-node-id="eKOxVxtrPO4NN5IGPXg116"><td data-page-node-id="BP0OzXMO16I6Uuwve6AWWR">Processing</td><td data-page-node-id="kUPgbIB6jhoGgMMxLQOHyg">The key code is translated into a named action. Both lower-case and upper-case letters are accepted, so the Shift key need not be held.</td></tr>
+<tr data-page-node-id="cbhIxpvzewC16i7zGHGvrK"><td data-page-node-id="GCm835yi1PSjhbAxsev3hL">Output</td><td data-page-node-id="IehDFoCHQJRDqwG7YFYGek">An action value that the main loop acts upon, or <code data-page-node-id="UDtkNPSdwlHKQAEXwoRRUL">Action.NONE</code>.</td></tr>
+</tbody></table>
+<h3 data-page-node-id="Ocj25pPAp63Fm9mOMYICTm">FR6 — Snapshot Saving</h3>
+<table class="three-line-table" data-page-node-id="yOEOkap8BOpjBWHU39LyqE">
+<thead data-page-node-id="F63AC3FNlbyT2CaTzrJFJb"><tr data-page-node-id="lD7cFQTtxGxZcvVzu7Lm2s"><th data-page-node-id="WZG7ULCTkEREa7wMBtnOFY">Aspect</th><th data-page-node-id="pt5F7KKLkf8vomoePBzaOL">Description</th></tr></thead>
+<tbody data-page-node-id="w231pKctKxWOUjobQqNStG">
+<tr data-page-node-id="qMkAgtFA8OhW5MZ7dU0Tif"><td data-page-node-id="4Fg1tBZRQFnedqMk867jUf">Input</td><td data-page-node-id="Cey6SCBYXOE4emxzAeHZik">The current annotated frame, triggered by the <code data-page-node-id="UGcoTX1LpuWtKpCIittmCa">S</code> key.</td></tr>
+<tr data-page-node-id="uWhp1dOO8sXN97owMSCDCW"><td data-page-node-id="yfprOZB1QresabtwcJDZ9C">Processing</td><td data-page-node-id="GtjoziGPfzzGLbgfLFZPvt">The frame is written to <code data-page-node-id="3G4ePw5NSrDcFb0zzrs8cC">outputs/snapshot_&lt;timestamp&gt;.jpg</code> using <code data-page-node-id="BBysveP5kwORQyE0zX7lQE">cv2.imwrite</code>. The output directory is created if it does not exist.</td></tr>
+<tr data-page-node-id="g9ZCPxJVxLuzhs9RFAI7CZ"><td data-page-node-id="hpcEdwf771VXVPhA5PFb0p">Output</td><td data-page-node-id="LC68IcPhXZAEQZ8mSHYluv">The path of the written file, printed to the terminal and shown briefly on the video. If writing fails, a message is printed and the loop continues.</td></tr>
+</tbody></table>
+<h3 data-page-node-id="PVHbTmf3yBdVN03MbOLkuL">FR7 — Session Summary</h3>
+<table class="three-line-table" data-page-node-id="MTHJIIdFxZMqDAwxmyyLos">
+<thead data-page-node-id="gMMYgDVRonvExVU4sTRLVL"><tr data-page-node-id="JI2Iwhb8wi5KVgPnVsgOfY"><th data-page-node-id="qxmYkcXWDiAaTWgKpZEa7k">Aspect</th><th data-page-node-id="KFiiQpVoM7SaZjH1dLICYV">Description</th></tr></thead>
+<tbody data-page-node-id="gWG6NRblRwSCR62qeWfn3M">
+<tr data-page-node-id="Kv1gAB7kJhGEDr0UkjlEtj"><td data-page-node-id="hEnHKAwTrVnPhFmrBx4UVB">Input</td><td data-page-node-id="AYe92VbV6lMZYlwodHMI8R">The accumulated session statistics.</td></tr>
+<tr data-page-node-id="AUSvWniJaJ2YGrJlPBTXS3"><td data-page-node-id="TvPgs3RoZJRZ4RIS7RSP76">Processing</td><td data-page-node-id="WvJcFU45LJSWNnv1KXHwQ8">The statistics are formatted for the terminal and serialised to JSON.</td></tr>
+<tr data-page-node-id="4P99EPcRtppUHB1RHAG5Ks"><td data-page-node-id="CQDYYz4BK2dSXq3zkV3Qe1">Output</td><td data-page-node-id="MLe7INBTjkwCqxEbkTS2sC">A printed summary, and <code data-page-node-id="OyDLMMS6teHPRw3tD8NsMQ">outputs/session_summary.json</code> containing the session start time, duration, frames processed, total detections, peak objects in a frame, average detections per frame, average confidence, average and peak FPS, the most frequent class, and the per-class totals.</td></tr>
+</tbody></table>
+<h2 id="section-7" data-page-node-id="dhkXExy7vNQdIZEPYPC2B4">7. Non-Functional Requirements</h2>
+<p data-page-node-id="nSFwfTC25SDO2bl6eqYWgk">Functional requirements describe what the system does; non-functional requirements describe how well it has to do it. The six requirements below cover performance, usability, reliability, maintainability, portability and modularity.</p>
+<h3 data-page-node-id="KYqTrJ5xnODt6DC5r2m00z">NFR1 — Performance</h3>
+<p data-page-node-id="G97iEZbV88hmY11Q8aKazF">The system must process and display webcam frames fast enough for the result to be perceived as live. This is a design aim rather than a guaranteed figure: the achieved frame rate depends on the hardware, the camera resolution and the model size, and no minimum frame rate is promised. The measured frame rate is reported to the user at runtime rather than assumed.</p>
+<h3 data-page-node-id="6okm7wytIWNRAr4XBHJu0A">NFR2 — Usability</h3>
+<p data-page-node-id="lziLLbGWUntvtgoVNCSsFC">The program must start with a single command and no configuration. The keyboard controls must be displayed on screen, so that the user does not need to consult documentation while the program is running. Status messages must confirm that a control has taken effect.</p>
+<h3 data-page-node-id="ncgwSS744Ixb0NeF9ltr2S">NFR3 — Reliability</h3>
+<p data-page-node-id="YGc1LYqQoU0hpcD6ANgGxR">The program must fail with an explanation rather than an unhandled traceback. Invalid command-line values, a missing model file, a missing Ultralytics installation and an unopenable camera each produce a specific message.</p>
+<p data-page-node-id="1XOt5Gx0oNjFEaw2VOcT3L">A frame that cannot be read is skipped; the loop stops only after 30 consecutive failed reads, so that a momentary glitch does not terminate the session. Failure to write a snapshot is reported but does not stop the loop. The camera is always released and the window always destroyed on exit, including on interruption.</p>
+<h3 data-page-node-id="caC0Vp0BdX5eJjAS4NQzKF">NFR4 — Maintainability</h3>
+<p data-page-node-id="wsceeYH3wy5Pd2VIfqIPCU">Each concern must be isolated in its own module with a single responsibility, and the modules that contain no OpenCV or model dependencies must be testable in isolation. Functions and classes carry docstrings describing their contract, including the errors they raise.</p>
+<h3 data-page-node-id="BDnsvaMk8qBDRVoPPWHKgg">NFR5 — Portability</h3>
+<p data-page-node-id="d4cbAbOhQ90wdfOe1tzHB5">The application must run on macOS, Windows and Linux. Platform differences are confined to a single place: the choice of OpenCV capture backend. The inference device is selected automatically, preferring CUDA, then Apple Silicon MPS, and falling back to CPU.</p>
+<h3 data-page-node-id="L7DJ4l7dV7qwLx7bzyYugT">NFR6 — Modularity</h3>
+<p data-page-node-id="G0bdhYmjXhy3zOYzPbkU7C">The main loop must orchestrate the other modules without those modules calling each other, so that any one of them can be replaced or tested independently. The dependencies of each module must be explicit in its imports.</p>
+<h2 id="section-8" data-page-node-id="HcqOigH8Tp1DnckGKLzX7A">8. Technology Stack</h2>
+<table class="three-line-table" data-page-node-id="AFDDmHvQ10GAd8Sv0SvUbU">
+<thead data-page-node-id="0JjNKCZudjNudJw4nFYoyc"><tr data-page-node-id="fNAjFv05vQDul9d47elnaT"><th data-page-node-id="mOQoB6nYSxXn73TQ4whDkq">Technology</th><th data-page-node-id="Spmgy9pBRTMTxVjd8dAQjo">Version used</th><th data-page-node-id="6HRdm1s2eGh14lYZKW63H9">Purpose in this project</th></tr></thead>
+<tbody data-page-node-id="3tiyN8ancguyGBrXGkEeIw">
+<tr data-page-node-id="EGwqIHDNgKXuqRIa3S2u1P"><td data-page-node-id="LXzBDG9NGOpG39apTeQmSA">Python</td><td data-page-node-id="7iv6qGXILzolvIGWjuE0ks">3.10 or newer</td><td data-page-node-id="IJFsWMG6cAEgF0rQPSn9Fg">The language in which the application is written.</td></tr>
+<tr data-page-node-id="AgwjhoyRSVal2xiwSqcmUL"><td data-page-node-id="rhOMFH1kH4zyMiOPz8Kkrx">OpenCV (<code data-page-node-id="orbUTS6JqB69p65kXaIjBx">opencv-python</code>)</td><td data-page-node-id="aTQ9EUS5TYpBgZC98TiKRs">4.9.0 or newer</td><td data-page-node-id="UHjwbE893GWjTD2CIwPDM7">Webcam capture, drawing bounding boxes and text, and the display window.</td></tr>
+<tr data-page-node-id="GHRcJIkeGPAfn9RbUZSlfA"><td data-page-node-id="y35X4sovPGepyU62hsdlPm">Ultralytics</td><td data-page-node-id="Ba9f4OfCZA199IYbjAtMCM">8.3.0 or newer</td><td data-page-node-id="bBTokmOJ5thSPZzfXOiS88">Provides the pretrained YOLO11 model weights and the inference API.</td></tr>
+<tr data-page-node-id="H6E2YfrmHhZrv6WrlDmfUQ"><td data-page-node-id="wobSb9gJaD16kMvUg6pX3l">YOLO11n</td><td data-page-node-id="ncYDOlS77kSVz8r3Ho0c0e"><code data-page-node-id="OOGJ61YmUO9Zlwe3XWnnOd">yolo11n.pt</code></td><td data-page-node-id="AjoDQgGdxzG5hGxT8Li5F4">The pretrained object detection model. Downloaded automatically on first use.</td></tr>
+<tr data-page-node-id="xfAv4a9haOE0WfA0fVhRo7"><td data-page-node-id="SRlSDz8uAwHGGCqAWMgh6r">PyTorch</td><td data-page-node-id="6bkCObM7woeg6pn7dGxLzw">Installed with Ultralytics</td><td data-page-node-id="fqRKOOFRKDNNuOAOpQVJKX">Performs the underlying tensor computation for inference.</td></tr>
+<tr data-page-node-id="911GhJOUzTIbbngeZ9lcBq"><td data-page-node-id="2fzYDGU9TnmPquwjsiup3q">NumPy</td><td data-page-node-id="JTdSCHG7JmXVmTIzaNFH8L">1.24 or newer</td><td data-page-node-id="z9m0Xb4cEo0iQ4W8ArtFYR">Frame buffers and array operations.</td></tr>
+<tr data-page-node-id="u35zjqE1gt26BuZrpwBdT1"><td data-page-node-id="UOKM0A7aPqupu3hBXPM9lq">pytest</td><td data-page-node-id="AwWn6JxmYKCiyaSIpDClFC">7.4 or newer</td><td data-page-node-id="81jT0szGY0fMCCimF7S5O0">Runs the unit test suite.</td></tr>
+<tr data-page-node-id="vxV0IUHoOkve76oyYgn6bc"><td data-page-node-id="eg0rgStzGL57eNMNYGDGLA">Git and GitHub</td><td data-page-node-id="tAPQHKAPvJCldZEHvUNZH5">—</td><td data-page-node-id="9dn5QgkiEQlI5wdqiFOl8X">Version control and publication of the repository.</td></tr>
+</tbody></table>
+<p data-page-node-id="9x35GMsiqYhl4qY0y2Y8cG">The application has no other runtime dependencies. It requires Python and a webcam, and nothing else.</p>
+<h2 id="section-9" data-page-node-id="LlAcybczudOuj0KY5wPHUT">9. Dataset and Model Information</h2>
+<p data-page-node-id="Q4HEEEQuKBjn6BGErBVRed">This section is included because the project applies a machine learning model, and because it is important to be precise about what was and was not produced by the student.</p>
+<h3 data-page-node-id="y33LVuDlRX7n0Bna8huMXO">9.1 The Model</h3>
+<p data-page-node-id="CRQSfeAi4jqARyI2znUBD4">The application uses the <strong data-page-node-id="RGV3ZhO5fRq3wBinpvv2ct">pretrained YOLO11n detection weights</strong> distributed by Ultralytics as <code data-page-node-id="PauCmQgU3w9nf6XsagmrCR">yolo11n.pt</code>. These weights are loaded through the Ultralytics Python API and are downloaded automatically the first time the program runs.</p>
+<h3 data-page-node-id="EJElNOXip2V3Brt6PaXfGG">9.2 The Dataset Behind the Model</h3>
+<p data-page-node-id="8CfFqHFeBV3mA9OXuv2xQm">The YOLO11n detection weights are pretrained on the <strong data-page-node-id="SvOFhE9EyDAb26T4znQwzb">COCO</strong> (Common Objects in Context) dataset. COCO is a large-scale object detection, segmentation and captioning dataset. Its detection portion defines <strong data-page-node-id="dUIKy4JZuHanIhJ4XZ1Ys7">80 object classes</strong>, including <code data-page-node-id="b3T1D6Rv5A7FnzfWNutaVb">person</code>, <code data-page-node-id="jS6fjWs4h8AmA4zYdCAyaY">car</code>, <code data-page-node-id="E2SrwzRCa3V2q1QAjLD18p">bicycle</code>, <code data-page-node-id="3Pgo5yPEywtXIg8PaiNH2x">dog</code>, <code data-page-node-id="fAnyy7Lh4iHvDK7Hp2tIHG">cat</code>, <code data-page-node-id="3pz7zdfB8CWSTVHLpl2asq">bottle</code>, <code data-page-node-id="lhYMrQBoFMDzkyakUvYrjO">chair</code>, <code data-page-node-id="EzhwSKFcD84ReDbWH9Mel0">laptop</code> and <code data-page-node-id="9nIFNPprOtkGDwC9XQSZ6P">cell phone</code>. Because the model was trained on these 80 classes, those are the only classes it can report.</p>
+<h3 data-page-node-id="ZOc8HSN98q1nuelxzJdbCq">9.3 What Was Not Done</h3>
+<ul data-page-node-id="JzaPmIGfgB90iZtpBQlDAX"><li data-page-node-id="7IW4JXBWO7cTj9oOUsFZSV"><strong data-page-node-id="Lu8PPyq8W8AoKjzUS7GX5K">No custom dataset was created.</strong> No images were collected, labelled or annotated</li><li data-page-node-id="tPQ3uStGRsrZDJnpKf2C1B">  for training or evaluation.</li><li data-page-node-id="kqvP9nKXxdcrR6z4cTbVt6"><strong data-page-node-id="Ta0EfER8DtGMtd6RBXjhBr">No fine-tuning was performed.</strong> The pretrained weights were used exactly as</li><li data-page-node-id="FLSDBfTspaXkjcQcoPvZrc">  distributed. The Ultralytics training API is never called anywhere in the</li><li data-page-node-id="PDurPHoo4mCRiSviR46CzR">  application.</li><li data-page-node-id="NPZAbP1IzabnSJXX1W5oyH"><strong data-page-node-id="GcYnv1zBP2YYeehM2GpMyd">The webcam session is not a dataset.</strong> The live session discussed in Section 19 is</li><li data-page-node-id="JZ655FZdS3FjIW5VS2CJ5a">  an observation of the system running. It has no ground-truth labels, and it</li><li data-page-node-id="3pRmjIouyKNuHmQgKThDSl">  therefore cannot support any accuracy measurement.</li></ul>
+<p data-page-node-id="dO2eaeYFCNpwAwCqTtuYXG">The reference for YOLO11 and its COCO-pretrained detection models is the official Ultralytics documentation listed in Section 26.</p>
+<h2 id="section-10" data-page-node-id="y8pwCBM5ugU8O58i7zmQEx">10. Model Selection Rationale</h2>
+<p data-page-node-id="88relRJOgrzpaAMdPslWd4">YOLO11 is distributed in several sizes — nano, small, medium, large and extra-large. The application uses the <strong data-page-node-id="5LzN3vrpeEH2ZxC3CbuimW">nano</strong> variant, <code data-page-node-id="flHzeSb48KZAAMeEnJZG4V">yolo11n.pt</code>. The reasons for that choice are practical rather than claims about quality:</p>
+<ol data-page-node-id="3pAZHHMTaPFdAGnTG9dgJs"><li data-page-node-id="dm3CwAX61aJlzEs5aRgYTv"><strong data-page-node-id="zVh3HYEZ2gO0lXR6ODQAcU">Lightweight variant.</strong> It is the smallest of the YOLO11 detection models in terms</li><li data-page-node-id="y57Krm9P54ib60LSCAJuDj">   of parameter count, which keeps memory use and per-frame computation low.</li><li data-page-node-id="oj7mM8WYnAk0Ha9aDgmQDU"><strong data-page-node-id="ROESSHk9vY9a4xhm7ijUvk">Suitable for real-time experimentation.</strong> A smaller model leaves more of the</li><li data-page-node-id="PjV4JvJA0YBYzXF3Pby3yc">   frame budget available for capture, drawing and display, which matters when the</li><li data-page-node-id="Qxu81pP5ziOwuPk8L8C7Tk">   whole pipeline must fit inside a per-frame time budget.</li><li data-page-node-id="JfdUEgaBXF9EzpajklPoOI"><strong data-page-node-id="GsGFuGU3UhCbIcCAy1ZeH6">Pretrained weights available.</strong> Ultralytics publishes ready-to-use weights for</li><li data-page-node-id="eI1HKKJ6B2VIxm9CfY44VC">   this variant, so no training step is required before the application can run.</li><li data-page-node-id="EfYcRQHWRb4FR1jufHm7FZ"><strong data-page-node-id="gJrGp2pX8lwrfKGCt0tKlM">Straightforward Python integration.</strong> The Ultralytics API loads a checkpoint and</li><li data-page-node-id="y9AZ4JfbQKz93qqvouUnjp">   runs inference in a few lines, which keeps the application code focused on the</li><li data-page-node-id="RoWBAKrXi1DdNmmtKOF8PW">   application.</li><li data-page-node-id="Zb4dQNuBu9ZLf4eDjpMHjk"><strong data-page-node-id="DN4GxebY0jIzgRtjUcR0an">Suitable for webcam inference.</strong> It runs on an ordinary laptop CPU as well as on</li><li data-page-node-id="kDH2HTzPLtk5tgeNUXwZEb">   a GPU, so the project is not tied to specialised hardware.</li><li data-page-node-id="hWoSgiv7IGPKHaIzhSOuQt"><strong data-page-node-id="1ADNLi1XD4zwufOxWT39KN">Lower computational requirement than larger variants.</strong> The larger YOLO11</li><li data-page-node-id="P1QlxcrGSR7j3Q0G63jjDZ">   variants offer different points on the accuracy-versus-cost curve; for this</li><li data-page-node-id="F6eK5RhiZkAIgfRVjx55yP">   project, the lower-cost option was preferred so that the application remains</li><li data-page-node-id="rSYeSRUJBfNnCwMuVPTaJS">   responsive on the hardware available.</li></ol>
+<p data-page-node-id="WSC3ccSW9PRNFCQbyrbV23">This is a trade-off, not a claim of superiority. No comparative experiment between YOLO11 variants was carried out, so no statement is made here about which variant is more accurate. The larger variants would likely improve detection quality at the cost of frame rate; that comparison is left as future work.</p>
+<h2 id="section-11" data-page-node-id="iyAmoSPFEYyyABYTfoDfAh">11. System Architecture</h2>
+<p data-page-node-id="oUaTDFAOk9BH5c09pXeABI">The application is a loop. Each pass reads a frame, detects the objects in it, updates the statistics, draws the results, displays the frame and checks for a key press. The work is divided into small modules, each with one clear responsibility, and the main loop is the only module that coordinates them.</p>
+<p data-page-node-id="vDrP31TBZomPrAkkB8uZvx">The data flow through one iteration is:</p>
+<pre class="code-block" data-page-node-id="MBPqKRlGCV5DAjsgDjopYg"><code data-page-node-id="feEPMvPE19HVbzHRJLlsoV">Webcam
+  |
+  v
+Camera Module  (app/camera.py)          -&gt; frame
+  |
+  v
+Detector Module (app/detector.py)       -&gt; list of Detection
+  |
+  v
+Analytics Module (app/analytics.py)     -&gt; FPS, class counts, session totals
+  |
+  v
+Renderer (app/renderer.py)              -&gt; annotated frame
+  |
+  v
+OpenCV Display  (app/main.py)           -&gt; window on screen
+  |
+  v
+Controls (app/controls.py)              -&gt; Action
+  |
+  v
+Next Frame / Exit</code></pre>
+<p data-page-node-id="XzyHchYkRCbla6ptF5juFr"><code data-page-node-id="gMLdyawlrt1fJLPeT1mh9Z">app/main.py</code> owns this sequence. The other modules are called by it and do not call each other, with the single exception that <code data-page-node-id="PKI7eVrvCrR2xm1UuwNPDk">renderer</code> reads the <code data-page-node-id="59oHlPpQnJhPKYrwPyVCuZ">Detection</code> objects that <code data-page-node-id="RoPho322IMHl1qSUerRQcw">detector</code> produces. That constraint is what allows <code data-page-node-id="tHFVZhUTJmggxYGugPO13j">analytics</code>, <code data-page-node-id="SYOOVQvK9qkQvK2MYDfx4O">controls</code> and <code data-page-node-id="UC6coLIudNewVkh9cNx22X">detector</code> to be tested without a camera, a window or a model.</p>
+<p data-page-node-id="iAatlYNos9FwAV44awtcjH"><strong data-page-node-id="ilGqJd0NyBSebBBWz5p46l">Figure 1</strong> shows the same structure with the data that passes between the modules.</p>
+<figure data-page-node-id="Rdde902QKRt3Yrw5g0NRPN"><img src="images/fig_architecture.png" alt="Figure 1. System architecture, showing the modules and the data passed between them." data-page-node-id="WCoCmmRPBEnByt6k4EjExY"><figcaption data-page-node-id="6EgliLCU2wCZIfQdkvHyTY">Figure 1. System architecture, showing the modules and the data passed between them.</figcaption></figure>
+<p data-page-node-id="lPEWCw6s3A9UOvx9VftQ0y">The <code data-page-node-id="AS1GRnu4UCUSzElHRHOcQP">Detector</code> module is the only part of the system that communicates with the pretrained model, which is a third-party component shown separately in the diagram. The <code data-page-node-id="owBGBBuRwjSY1i6z9rQXvJ">Files</code> element represents the snapshot and session-summary output described in FR6 and FR7.</p>
+<h2 id="section-12" data-page-node-id="AD9ZldKi5UtRa0YLVUIXwC">12. Project Module Description</h2>
+<table class="three-line-table" data-page-node-id="qG7TcTCLHAOjSDbGcw3yoN">
+<thead data-page-node-id="pGSfEg3pTnQWSDaCuKMBsy"><tr data-page-node-id="3Y1b1m8zqFuAaJUP2aT5xv"><th data-page-node-id="gTRKSP40AxhNGevBu0pllX">Module</th><th data-page-node-id="uknemSaFqV3bORCqKbyFIN">Responsibility</th></tr></thead>
+<tbody data-page-node-id="k5hZnFX31fRouhaNk7edLu">
+<tr data-page-node-id="NVWbn7JjDChp0reJm8Kly9"><td data-page-node-id="kVjwZV77gTpqI5Jl13xD07"><code data-page-node-id="A20fJOyEvIHtntxdBg9Iw1">app/__main__.py</code></td><td data-page-node-id="B82GjcOwvY4IFDeMIofExX">Entry point that makes <code data-page-node-id="1YV20eB2MdpOnM0U04hf0o">python -m app</code> work.</td></tr>
+<tr data-page-node-id="FrAGAjx403o5E6L2KimMfm"><td data-page-node-id="Wc57lh9BfWBECvs3ph3KRx"><code data-page-node-id="7xmceTaHv7xjGEtXF7dC97">app/main.py</code></td><td data-page-node-id="5cxYfwqgbUPyz5wqJvRuvJ">Command-line parsing, output files and the main loop.</td></tr>
+<tr data-page-node-id="aP9N8fVlCSiWv25ewyuMXz"><td data-page-node-id="CntWEEyF2yLpWBXN6cYIBE"><code data-page-node-id="ysnDV371P0V9Z4tMX1BElK">app/camera.py</code></td><td data-page-node-id="HGDpUMeqZPS1LXpsG9MOfJ">Webcam capture.</td></tr>
+<tr data-page-node-id="ZwcPN8BuV8BoyrAgnBKMQI"><td data-page-node-id="7xhIwOqnpxqrDMLtjbVUAl"><code data-page-node-id="DNq81TiVNBdMr9H3PfU2nX">app/detector.py</code></td><td data-page-node-id="iHyLsBCY5gsPalV2DCFJWa">YOLO11 loading and inference.</td></tr>
+<tr data-page-node-id="68mEvvGRQeYvHKBgXbuUfi"><td data-page-node-id="M6f1r1GWRxfuUIyZEWNA6O"><code data-page-node-id="pbJHsuOLHJjRjNaKkEYFZP">app/analytics.py</code></td><td data-page-node-id="ahe5SnQiqYVMVdKyGTtkZE">Frame-rate measurement and object counting.</td></tr>
+<tr data-page-node-id="pV0Xw5NE4S2VHjuAD78wEV"><td data-page-node-id="2Dz9mOvSAmh4IU3dDIFkaS"><code data-page-node-id="M8OUJOnQ2ShuxfP3KHfH0O">app/renderer.py</code></td><td data-page-node-id="8QEfbBEyDJYHYJzqr302Yb">All OpenCV drawing.</td></tr>
+<tr data-page-node-id="UxpTg0UI1zhISDGBByPMlf"><td data-page-node-id="jOgGJWkZXPwdHDeIGpugES"><code data-page-node-id="Wrp9rvra3PXv0i1CnuJSBz">app/controls.py</code></td><td data-page-node-id="X6BYBqSyAT6WbAw97U3IJC">Keyboard controls.</td></tr>
+</tbody></table>
+<h3 data-page-node-id="TFIiq2Zq6avWxFDiFIuVSO">12.1 <code data-page-node-id="u2Em8rhgOHblzz4ljFxNec">app/main.py</code></h3>
+<p data-page-node-id="3Pt974qCqRJwVCI4eDjBRP">Parses the command-line arguments, constructs the other objects, and runs the main loop. It is the only module that knows the order in which the other modules are used. It also writes the session summary when the loop ends. Five options are supported: <code data-page-node-id="PYyh1NRzYo5HkSfCczPYLa">--camera</code>, <code data-page-node-id="56KTfkwERyx1B1yQ29Utmj">--model</code>, <code data-page-node-id="NZC46qdIYCoOCuaPmC7s5Q">--conf</code>, <code data-page-node-id="j9ClWX7k3qsAaSLncmc44N">--width</code> and <code data-page-node-id="KgTQ0Fg2LxFti30vKc8iTq">--height</code>. The loop body is written as five commented steps so that the sequence is readable at a glance.</p>
+<h3 data-page-node-id="bqkDR2TUnUDjd7a2HMGsv4">12.2 <code data-page-node-id="YDHvBmOmgoy3c96Eq6Rncj">app/camera.py</code></h3>
+<p data-page-node-id="ldSeFkFRlNe7jY9wHXr8C7">Wraps <code data-page-node-id="jflZc8ZkZuR9h7OrjRXEmL">cv2.VideoCapture</code>. It opens the device, reads frames, and releases the device again. It also accepts a video file as a source, which is not a project feature but a convenience that allows the pipeline to be exercised on a machine with no webcam. If the source cannot be opened, it raises <code data-page-node-id="43TqyiBC67bRgcx76DKiW1">CameraError</code> with a message listing the likely causes, instead of allowing OpenCV's own error to surface. The platform-specific capture backend is chosen here and nowhere else.</p>
+<h3 data-page-node-id="Z3ycAvH0lSSh9vRRWMIYpe">12.3 <code data-page-node-id="lKOJ8mnu4bjgQxxqtRJ4BH">app/detector.py</code></h3>
+<p data-page-node-id="WYAymzCnnopHssUR4UISAX">Loads the pretrained YOLO11n model and runs inference on individual frames. It converts the raw output of the model into a list of <code data-page-node-id="8A17nRhQPdhcsiX2KgoyuV">Detection</code> objects, each holding a class index, a class name, a confidence and a bounding box. The rest of the program never touches the Ultralytics API directly, so the model could be replaced without changing the loop. This module also resolves the inference device and reports a readable name for it. It implements no part of the neural network.</p>
+<h3 data-page-node-id="8547FkZo5W9dxNX2inuIbE">12.4 <code data-page-node-id="NQfMKKfwPWArTqQyqfnTvc">app/analytics.py</code></h3>
+<p data-page-node-id="f9bgB71Aav0zEoNFfiLYsA">Measures the frame rate from real timestamps and counts objects. <code data-page-node-id="7Fxa62GfgVzGNcWArWRW1M">FpsCounter</code> averages the intervals between recent frames and returns the reciprocal; the first call only records a starting time, so the frame rate is reported as zero until one interval has been measured.</p>
+<p data-page-node-id="Wvx2dM4GsOnFV8GytNuM64"><code data-page-node-id="hmSXyVB2yqNC7WbhBsvEbL">SessionStats</code> accumulates totals across the whole run and produces both the printed summary and the JSON written to disk. This module has no dependency on OpenCV, Ultralytics or NumPy, so all of its logic can be tested on its own.</p>
+<h3 data-page-node-id="nOcdu0873BNVqq3CC4vPVT">12.5 <code data-page-node-id="9MBF2U4Ui27GPWWHUkCRkS">app/renderer.py</code></h3>
+<p data-page-node-id="h8wFPerM5TGngVAGhILgvz">Contains every OpenCV drawing call: the bounding boxes, the labels, the statistics panel and the controls panel. Class colours are derived from a checksum of the class name rather than from Python's built-in <code data-page-node-id="ig35OZo0cQZk4VNujLUok7">hash()</code>, because string hashing is randomised per process and the colour would otherwise change on every run. Ten colours are defined in a fixed palette.</p>
+<h3 data-page-node-id="XyyNQIzCkI8ydxryvrIsV8">12.6 <code data-page-node-id="MIc3PDJlJG09NN2GqPLlTz">app/controls.py</code></h3>
+<p data-page-node-id="ocu1oSwrz2CWXRhypx0wyq">Maps the integer returned by <code data-page-node-id="p8GnOfO5Vhf0tG5EAxB6CN">cv2.waitKey</code> to a named <code data-page-node-id="hIYR9VRkdDXhte04UoZnrl">Action</code>, and clamps the confidence threshold to the permitted range. It contains no OpenCV code, so the key handling can be tested without opening a window.</p>
+<h3 data-page-node-id="36PH0Wu6qj8YGWVZKOJHtQ">12.7 <code data-page-node-id="e7CLpdjRDdS8qamOU8frr2">app/__main__.py</code></h3>
+<p data-page-node-id="24m2w61O0bXyfWz1QvTO8z">A three-line module that allows the package to be executed with <code data-page-node-id="1Z0q28mTKFFniwTF2HyUQ8">python -m app</code>.</p>
+<p data-page-node-id="q6u3XrYVav4KCnVundT8BE"><strong data-page-node-id="YJBoC2GzMZBaVUHO74OD3q">Figure 5</strong> shows the principal classes and their relationships.</p>
+<figure data-page-node-id="4A5A7Lo6vbhDjXeBtReXfV"><img src="images/fig_component.png" alt="Figure 5. Component and class diagram of the application." data-page-node-id="osSQ8aYlzCxs3k6nfijWU9"><figcaption data-page-node-id="zS3IGw7tiNhZ0ZpLaUlOoB">Figure 5. Component and class diagram of the application.</figcaption></figure>
+<h2 id="section-13" data-page-node-id="AjAgcoyX7ERMxmTXD6TnNv">13. Workflow and Methodology</h2>
+<p data-page-node-id="ybCLTPisPakxWwWpBhDw0B">The application follows a fixed frame-by-frame sequence.</p>
+<ol data-page-node-id="t96w5wsF5ctgcqfRXAhEU5"><li data-page-node-id="A17Vl8EexjEEIFLMitC4Kd"><strong data-page-node-id="8cBFWG282Xcoalec66JuoH">Initialise the application.</strong> The command-line arguments are parsed and</li><li data-page-node-id="oWO7pqsuVNgEsMcXfsCG4W">   validated. An invalid value stops the program with an explanatory message.</li><li data-page-node-id="C6jiOEGzZK6iZKYsFAaeEX"><strong data-page-node-id="iVnUXgnhCYisqmTCPBBqRj">Load YOLO11n.</strong> The model weights are loaded, and downloaded once if they are not</li><li data-page-node-id="etzsOueTFbx9YFtEssjzj4">   already cached. The inference device is selected automatically.</li><li data-page-node-id="6v7O2Tb2VcpY5YJiB0n1Di"><strong data-page-node-id="8DXoGEgQabFK72xXGS0kMC">Open the webcam.</strong> The capture device is opened and the requested resolution is</li><li data-page-node-id="Rz7FG4Jx4xJAKz0Eu9T3qR">   applied. A failure here prints the likely causes and exits.</li><li data-page-node-id="4AITd51rFie95ykQnO2zxP"><strong data-page-node-id="AGzleWUHmpj3mUFj6fTjb1">Capture a frame.</strong> A frame is read from the camera.</li><li data-page-node-id="lV7MMHIQofHYrj2shpRyCi"><strong data-page-node-id="oyfSTd08oStxr8iFzHZPBF">Run inference.</strong> The frame is passed to the model at the current confidence</li><li data-page-node-id="Rl7gBsvGyc4jr86ZYfGPOo">   threshold and inference resolution.</li><li data-page-node-id="wU0GYtuNxJpxVoYZQclYRx"><strong data-page-node-id="bubpnBFgFJxfsCJu9muSF9">Filter detections using the confidence threshold.</strong> The threshold is passed to</li><li data-page-node-id="tr09SFqmYy221TEaj3uaal">   the model, so Ultralytics discards low-confidence detections during inference</li><li data-page-node-id="iqV8miIvjmEpoEHGEjMopn">   rather than the application filtering them afterwards.</li><li data-page-node-id="sEPoKVZaGiYdO8lYboThKk"><strong data-page-node-id="wAyNiT0ZmDjvrlt1ixU6sd">Collect class, confidence and bounding-box information.</strong> The model output is</li><li data-page-node-id="1HIsaVnggA7CQxUlohCNWN">   converted into <code data-page-node-id="I50yltIBIIBrEPpuhSOZBO">Detection</code> objects and sorted most-confident first.</li><li data-page-node-id="x5bWNEFkHKKojQTuKADtWK"><strong data-page-node-id="Tt9CPUBWkLAljhJBwNEFM7">Update the statistics.</strong> The frame rate is measured from the current timestamp,</li><li data-page-node-id="rmRqrn319EAkwJ7OnPiZuJ">   and the object count, per-class counts and session totals are updated.</li><li data-page-node-id="4GEZpvFMd0dffcnepeErEy"><strong data-page-node-id="Wj7nnh8GvPMrjlecrK7Drc">Draw the results.</strong> Bounding boxes, labels, the statistics panel and the controls</li><li data-page-node-id="311nycmnLcMvQRN861RKRQ">   panel are drawn onto the frame.</li><li data-page-node-id="Qdgj4KcWLnXE73UV6Ajie4"><strong data-page-node-id="ZNXCCMrQZvHEGOEGAGQJki">Display the frame.</strong> The annotated frame is shown in the OpenCV window.</li><li data-page-node-id="M0oJxjZUnhguF99x2B663g"><strong data-page-node-id="xnDGUfg3R0cUO9DS73fUfV">Process keyboard input.</strong> The key code is translated into an action and acted</li><li data-page-node-id="zYq5HMdvRqSXEdEcIvBLuF">    upon.</li><li data-page-node-id="zQtkBuXXClcbN5Jpn0VQME"><strong data-page-node-id="NrPd2blUxTr5ksomBklLD0">Repeat until exit.</strong> The loop continues until <code data-page-node-id="uGVtpTGMGyJVwVgp6AtA1S">Q</code> or <code data-page-node-id="Hg6iRWCaYWFwUXPsLMFC1t">ESC</code> is pressed, the video</li><li data-page-node-id="hDR6uFJWtr66eXWj3fcxic">    source ends, the read failures exceed 30 in a row, or the program is interrupted.</li><li data-page-node-id="UFHcZMl83ojpSOCRDKeEMo"><strong data-page-node-id="AROJFPoeVPplFgTYD3uBjR">Generate the session summary.</strong> The camera is released, the window is destroyed,</li><li data-page-node-id="j4D8cfVHcIHJhUxT9IQtP5">    the summary is printed to the terminal, and the same summary is written to</li><li data-page-node-id="A7Fh4Z7qXr8vhz7zOk3H3I">    <code data-page-node-id="voj4xxHukpvrBSYUoaqBHf">outputs/session_summary.json</code>.</li></ol>
+<p data-page-node-id="k4RqaQd4Q67Qnvyr46vWec"><strong data-page-node-id="Oua8DC5inLqpblHanDDABK">Figure 2</strong> presents this sequence as a flowchart, including the error paths.</p>
+<figure data-page-node-id="QBi2hx4yS4u2RXi7yn4GPT"><img src="images/fig_workflow.png" alt="Figure 2. Application workflow, including the camera-failure and stream-lost paths." data-page-node-id="Tz1R0eBeKd3zcdejTcK79n"><figcaption data-page-node-id="XR28kKeyWrFRCAYrRN5BJ7">Figure 2. Application workflow, including the camera-failure and stream-lost paths.</figcaption></figure>
+<p data-page-node-id="oKhu6A2iJ7qzCvEIe0GZoY"><strong data-page-node-id="WdfNAfrt4bMyylc82xGqki">Figure 4</strong> shows the same sequence as an interaction between the user and the modules, which makes the ordering of the startup calls explicit: the model is loaded before the camera is opened.</p>
+<figure data-page-node-id="XFoFBdPhwRfrA3h67jcAST"><img src="images/fig_sequence.png" alt="Figure 4. Sequence diagram for one session." data-page-node-id="yvjINABc8gDgIWoZqgfDdn"><figcaption data-page-node-id="uQmmFWHulFragPILVLlHFq">Figure 4. Sequence diagram for one session.</figcaption></figure>
+<h2 id="section-14" data-page-node-id="f3OurbuKOy6knK8FxK1Eo3">14. Design Diagrams</h2>
+<p data-page-node-id="lQ8Ig3bclscNZxNDNgbl4O">Five diagrams document the design. All five are stored in the repository under <code data-page-node-id="43VnKE64AoRbNShZfVMlSO">docs/diagrams/</code> as Mermaid source, and are reproduced here as figures.</p>
+<h3 data-page-node-id="AZjRmad2MjtM6ZzsJRGeIF">14.1 Architecture Diagram</h3>
+<p data-page-node-id="bXKCEcirVUepFFjTraA327"><strong data-page-node-id="BFsbkeSjMmCEFI5XfV3NiV">Figure 1</strong> (Section 11) shows the modules and the data that passes between them. It corresponds to <code data-page-node-id="XIwtJJgUNPVPh8Gd42M8Vw">docs/diagrams/architecture.mmd</code>.</p>
+<h3 data-page-node-id="pTMKOhtyCtkej3UBOC5p7r">14.2 Workflow Diagram</h3>
+<p data-page-node-id="Mu1xH4nVPE1mQTmt76Wj8x"><strong data-page-node-id="uSZYwW0J7fU9CSeLuWqrI9">Figure 2</strong> (Section 13) shows the frame-by-frame sequence together with the two error paths: a camera that will not open, and a stream that is lost. It corresponds to <code data-page-node-id="PtmcL1TszrfvHo1CI2VURj">docs/diagrams/workflow.mmd</code>.</p>
+<h3 data-page-node-id="cwyb13hYUcOKkCxhfxRCdS">14.3 Use Case Diagram</h3>
+<p data-page-node-id="FuK77McCt2U7YlbSPChd2W"><strong data-page-node-id="GV5PiYbtR89MormQ0JJBXn">Figure 3</strong> shows what the user can do with the system. The eight use cases correspond directly to the features listed in Section 6 and to the controls documented in Section 16. It corresponds to <code data-page-node-id="UoF74EN7VppO6Hr6YLDDky">docs/diagrams/use_case.mmd</code>.</p>
+<figure data-page-node-id="jzo3pvENoF2nAD37F4RvlL"><img src="images/fig_use_case.png" alt="Figure 3. Use case diagram, showing the user-facing capabilities of the system." data-page-node-id="si4wcVSeVkBDOagGR4fYYZ"><figcaption data-page-node-id="VT3DmLGzp0Dbvbfn3aaUhW">Figure 3. Use case diagram, showing the user-facing capabilities of the system.</figcaption></figure>
+<h3 data-page-node-id="M0Ce6m9WLMFQF1CW93TRXH">14.4 Sequence Diagram</h3>
+<p data-page-node-id="nDj77zAEAxEUOEGrrYBaIK"><strong data-page-node-id="VxShfUi9ESrkJMFXORbhSW">Figure 4</strong> (Section 13) shows the order of interactions within one session. It corresponds to <code data-page-node-id="2yXJyjfFDrW29WF1Rsqphv">docs/diagrams/sequence.mmd</code>.</p>
+<h3 data-page-node-id="Kp0MagPaDBGDoCPeZ1MS9f">14.5 Component and Class Diagram</h3>
+<p data-page-node-id="njpZYzAlWqvFYUcAgNYmYt"><strong data-page-node-id="ydrHuWTTG6fIINoQNqBnIN">Figure 5</strong> (Section 12) shows the principal classes — <code data-page-node-id="tMHgOqHpldF22vga9ZLW15">Camera</code>, <code data-page-node-id="Eo37NUTO3IUoYMJOblUSP6">Detector</code>, <code data-page-node-id="bS63WAAuvJskz38LfSR9JZ">Detection</code>, <code data-page-node-id="Jm0JUFVkaIPPdm80sk1wlG">FpsCounter</code>, <code data-page-node-id="FQMEHfRuAIb6vrgcqn6wMh">SessionStats</code>, <code data-page-node-id="Q3tQdif1wuBeZJVQxOVjTi">Renderer</code> and the <code data-page-node-id="tdTHMI7BmQ6uX84X0IXbIq">Action</code> enumeration — and the relationships between them. It corresponds to <code data-page-node-id="H7JsrCz3o9PFrHTWIE9Tge">docs/diagrams/component.mmd</code>.</p>
+<h2 id="section-15" data-page-node-id="1UJIdgzCNwZoAePOtdDHKU">15. Implementation</h2>
+<p data-page-node-id="KVOkUKSKpgMc7RtZoze2SB">This section describes the implementation concepts. Full source code is not reproduced; the repository is the reference for the implementation itself.</p>
+<h3 data-page-node-id="xyJH4RynrmlpIGaJn1sIVH">15.1 Webcam Capture using OpenCV</h3>
+<p data-page-node-id="9weD814l3Hcl9Cvz6JWvcw">Capture is handled by <code data-page-node-id="WMwC2gvsMLT5r92BWpLB1c">cv2.VideoCapture</code>. The application requests a platform-appropriate backend — AVFoundation on macOS, DirectShow on Windows, and the default on Linux — and falls back to letting OpenCV choose if the driver rejects the explicit request. The requested width and height are applied only if both were supplied, because a request for one dimension alone is ambiguous.</p>
+<h3 data-page-node-id="EApHFRszV2I6z1uOLj7H3B">15.2 YOLO11n Model Loading</h3>
+<p data-page-node-id="uipH137e1bAsil1XOOBglN">The model is loaded once, before the camera is opened. This ordering is deliberate: a missing or unreadable model is a more likely mistake than a missing camera, and reporting it first avoids opening a camera needlessly. A bare checkpoint name such as <code data-page-node-id="RjAAB6BTPMSSE8D3eLerUw">yolo11n.pt</code> is treated as an official Ultralytics checkpoint that the library downloads itself, whereas a name containing a directory component is treated as a local file that must already exist.</p>
+<h3 data-page-node-id="sCn5mxdFNLHDeWIuFLH3Ab">15.3 Inference</h3>
+<p data-page-node-id="Ms6mHAFzbVxyGyfOtWUZNP">Each frame is passed to the model with the current confidence threshold and an inference resolution of 640 pixels. Inference is wrapped so that any failure is reported as a <code data-page-node-id="wBmMGSExGNOmNAcHtwWC50">ModelError</code> naming the cause, rather than surfacing as an internal traceback from a third-party library.</p>
+<h3 data-page-node-id="cS8bjMS5vfpxsr8SpOvyP9">15.4 Detection Representation</h3>
+<p data-page-node-id="KBb9Wlak7GhbUHDAxxBzZh">The raw output of the model is converted into a small <code data-page-node-id="S9tjX39oaMVEEkiDGqHvF4">Detection</code> structure holding a class index, a class name, a confidence and a bounding box in <code data-page-node-id="MShxkJRn5XYcUHuJ1auPXs">(x1, y1, x2, y2)</code> pixel coordinates. It exposes a <code data-page-node-id="GyhbvDTABEqMvfZB6B1dLD">label</code> property that formats the text drawn above the box, for example <code data-page-node-id="ryoWIk70mmxlDj9Sukf1rD">person 0.87</code>. Confining the Ultralytics data structures to this one conversion step means the rest of the program deals only in plain Python values.</p>
+<h3 data-page-node-id="95Es7sTC4B5O8FwXK9ygw0">15.5 Confidence Threshold</h3>
+<p data-page-node-id="TiwX9v6mmQh9I5YmaDHXBT">The confidence threshold is a single number, defaulting to 0.25 and constrained to the range 0.05 to 0.95. It is passed to the model rather than applied afterwards, so filtering happens inside inference. Lowering the threshold detects more objects, including weak and false ones; raising it keeps only the strongest detections. The <code data-page-node-id="66g9vx1kNCord5Qd7rNVmb">+</code> and <code data-page-node-id="99WdjkI2fRhpqzu920YaKz">-</code> keys adjust it in steps of 0.05 and the new value is shown on screen.</p>
+<h3 data-page-node-id="r27sdbXZQRo4TQlyMmUgoC">15.6 Bounding-Box Drawing</h3>
+<p data-page-node-id="HlIr4wuF55rRpuIGhlN8VQ">Each box is drawn as a rectangle, with a filled rectangle above it carrying the class name and confidence. Two details are handled explicitly.</p>
+<p data-page-node-id="KVmsu93jqGIklHYUzhReIZ">First, box coordinates are clamped to the frame boundary, because the model can predict a box that extends slightly outside the image. Second, the label is drawn above the box, but if it would fall off the top of the frame it is drawn inside the top of the box instead. Colours come from a fixed ten-colour palette indexed by a checksum of the class name, so a given class is always drawn in the same colour across runs.</p>
+<h3 data-page-node-id="vL1wZdL0PxA3isXYcIbSH8">15.7 FPS Calculation</h3>
+<p data-page-node-id="ZDZdHLFAk4X5SXLIJ3TMwJ">The frame rate is measured, not assumed. <code data-page-node-id="G7bjFTKQfQvVoq0Yb8I5Uo">FpsCounter</code> records the interval between successive frames, keeps a rolling window of the most recent 30 intervals, and reports the reciprocal of their mean. The first call can only record a starting time, so it returns zero. Because the figure comes from real timestamps, it reflects the actual behaviour of the machine and is reported to the user rather than promised in advance.</p>
+<h3 data-page-node-id="6Vs0uHpE3SEogvlbTEcF8n">15.8 Class Counting</h3>
+<p data-page-node-id="MFjul9zhPmzRSSxHCBqOR2">Per-frame class counts are produced with <code data-page-node-id="8c3lioUlvOAZLlFdIbmVEA">collections.Counter</code> over the class names of the frame's detections. Session-level totals accumulate into a <code data-page-node-id="lF2sWNDNBSLeOqdXGae61F">Counter</code> that persists across frames, and the most frequent class is reported at the end. Ties are broken alphabetically, so the reported result is deterministic.</p>
+<h3 data-page-node-id="ilgYfim9VMmXg1AwiA58G8">15.9 Keyboard Controls</h3>
+<p data-page-node-id="Qw4n6Qugrgt2UYArSTKlSH"><code data-page-node-id="0Nk3A1PH27QWh16R0weDEh">cv2.waitKey(1)</code> returns a key code, or <code data-page-node-id="kiX0KRoM91ejPySHvZBDBy">-1</code> when no key was pressed. A dictionary maps key codes to actions, and both lower-case and upper-case letters are mapped so that Shift need not be held. Keys that are not mapped produce <code data-page-node-id="tuoCaWso684xZSZkAu3Qjx">Action.NONE</code> and are ignored. The confidence clamp lives here rather than in the loop, so that the boundary behaviour can be tested without a window.</p>
+<h3 data-page-node-id="mv04DwIcdoV8zlcC6lWuNK">15.10 Snapshot Saving</h3>
+<p data-page-node-id="jJFFiSDcudDJj1DTz4VRM5">Pressing <code data-page-node-id="OcaEVZDEGDNRxuKteTMelP">S</code> writes the current annotated frame to a timestamped JPEG in <code data-page-node-id="9eZvIyTkLqzQqxzAZX89sw">outputs/</code>. The annotated frame is written, not the raw one, so the snapshot records what the user actually saw. The output directory is created if necessary. A write failure is reported but does not stop the loop.</p>
+<h3 data-page-node-id="4WvQ5wbD0QpaFtBCBQUzqb">15.11 Session Summary</h3>
+<p data-page-node-id="QKcCqhDc54pDb65dOXcW4Q">When the loop ends, the statistics are printed to the terminal and written to <code data-page-node-id="k8bU4C5TC0CZh2xugA8gcJ">outputs/session_summary.json</code>. Eleven values are recorded: the session start time, duration, frames processed, total detections, the largest number of objects seen in a single frame, average detections per frame, average confidence, average and peak frame rate, the most frequent class, and the per-class totals. Writing the summary is wrapped so that a failure to write does not prevent the program from exiting cleanly.</p>
+<h2 id="section-16" data-page-node-id="0Ukqe6xmzlhZXPhiFqZMxD">16. User Controls</h2>
+<table class="three-line-table" data-page-node-id="vONh9QboVQf5dVZVEBl342">
+<thead data-page-node-id="HVpGs7wH9CHO5eU7O2gVkf"><tr data-page-node-id="lSwzk6yVaniKX30vwFeHBR"><th data-page-node-id="TWuCKXcbCROU2QboQxoX1J">Key</th><th data-page-node-id="lylP1bvLRXyKREwbmqI7Ah">Action</th></tr></thead>
+<tbody data-page-node-id="nEO2BXIr3lFZuSlmjFIutH">
+<tr data-page-node-id="3lSCxa7a4mKWoRSHXtyURM"><td data-page-node-id="P5HQUOfSg4zgovXqzNne7j"><code data-page-node-id="DeX0hvfVvm9C015Vdp4qNH">Q</code> or <code data-page-node-id="4DVfkwYBpjzOxM0sE3pQZo">ESC</code></td><td data-page-node-id="QTGMNNhSfZCaAiI6pcbSxQ">Quit the application.</td></tr>
+<tr data-page-node-id="msWPv8UQD7ITQpRk2ObNHl"><td data-page-node-id="csQ1gP1JmH4twEvBvZhmLu"><code data-page-node-id="40TFRaN2tGY7Ws4SRElCZP">S</code></td><td data-page-node-id="NEBRxKUhQl5chhafdWzLxP">Save a snapshot of the current annotated frame to <code data-page-node-id="PGdb0oHg7Bk3IJ705vxEv5">outputs/</code>.</td></tr>
+<tr data-page-node-id="r9O4oAwMnbSWoU81c40nXg"><td data-page-node-id="yee9M1yXP1cwh55hqbTDwo"><code data-page-node-id="yjH8pHMwD06472LXaBpb8h">C</code></td><td data-page-node-id="5amnXa10dgj0CPooARMunu">Clear the session statistics, so that the running totals restart from zero.</td></tr>
+<tr data-page-node-id="gfbyIp6JYTVmdgFUMfeinY"><td data-page-node-id="KMR4tSKHSzS3AxAbNBvgxL"><code data-page-node-id="ouH8cP9sQN4JOTn1ZNwA9q">+</code></td><td data-page-node-id="yVPCgmEIx4qKQoYOQcmdOi">Increase the confidence threshold by 0.05, up to a maximum of 0.95.</td></tr>
+<tr data-page-node-id="6r8EaiOmKXfDDMSWMN3dFm"><td data-page-node-id="LY6F6C0fXsPUdsSRq8a0Aq"><code data-page-node-id="SpTVX7q9Nnk1I39Xs9lbQx">-</code></td><td data-page-node-id="glz1SxyWfNuadGcocADdZz">Decrease the confidence threshold by 0.05, down to a minimum of 0.05.</td></tr>
+</tbody></table>
+<p data-page-node-id="HfD9mnVjDdXug5b076FYiO">Both lower-case and upper-case letters are accepted for <code data-page-node-id="RGfHWr5koNK2YZpq1fWD30">Q</code>, <code data-page-node-id="8wOXCHrk8c4xxrHW9S7o5d">S</code> and <code data-page-node-id="9bFPrQyaNvsh2YPDD1MvXK">C</code>. The same list is drawn in the bottom-left corner of the video window, so the controls are always visible while the program runs. After a control is used, a short status message is displayed for about two and a half seconds to confirm that the action took effect.</p>
+<h2 id="section-17" data-page-node-id="uz3tsdhvi4wSZjnyCICy9S">17. Testing</h2>
+<p data-page-node-id="jtxxNa3jT06mWPXMRpAbCl">Testing here means software testing: verifying that the application code behaves as specified. The three subsections below describe the approach taken, the areas covered by the suite, and — just as importantly — what the tests do not measure.</p>
+<h3 data-page-node-id="0ufuX8fkSeZXsUdVYtv1Z7">17.1 Approach</h3>
+<p data-page-node-id="VXhiJT8RTN1yLzWEDCln9A">The implementation is covered by a suite of <strong data-page-node-id="qCDhIaA22e2ZdHed7Z38PV">62 unit tests</strong> across five files, one per module. The tests are designed to run offline: they neither download the model nor require a webcam, and the complete suite finishes in a few seconds on an ordinary machine. That constraint shaped the module boundaries — <code data-page-node-id="g2MxCvYnkz9jAYqKinjQwS">analytics</code> and <code data-page-node-id="RqVygrauOv7Apd3eStl51N">controls</code> deliberately contain no OpenCV or model code, so their logic can be exercised directly.</p>
+<h3 data-page-node-id="17PXESwfsvHmrUss2C8nX1">17.2 Coverage by Area</h3>
+<table class="three-line-table" data-page-node-id="EyEMFaC2bqAFKtCZlEzFOA">
+<thead data-page-node-id="8d5HTnPawd0YYQms2L6TwH"><tr data-page-node-id="KA32BNt6pJe6yBRNb7upBy"><th data-page-node-id="BoEHE2cNh1AIbbW0fHOqh4">Test file</th><th data-page-node-id="0S9Q9Q7VC4qW1IBUimUb0A">Tests</th><th data-page-node-id="5rTHcBtVSZNnXchnz78s1H">Areas covered</th></tr></thead>
+<tbody data-page-node-id="mlwWYWAmwkn2AK9YzhCat6">
+<tr data-page-node-id="GUDtO0E5fAs8gGbaIFoFfq"><td data-page-node-id="liHS1xek6pSTHKGbJ4gzsF"><code data-page-node-id="bXyUBAXQcmucZq3Yi5iksj">tests/test_main.py</code></td><td data-page-node-id="IPKwrkD4VpKqNVsQfXTHbz">12</td><td data-page-node-id="iPNbwlIY1EQCD7DvFuJQ7g">Argument parsing, default values, rejection of invalid values, snapshot writing, session-summary JSON.</td></tr>
+<tr data-page-node-id="7jeNJ06sa90NzbcMfF3yOU"><td data-page-node-id="HgwhdPGaJwudoLVerDHOZO"><code data-page-node-id="NosJrQpH9Y7X1oIVbAOeSp">tests/test_camera.py</code></td><td data-page-node-id="S0RKTK8qB8G9JaAz9ToCw9">10</td><td data-page-node-id="BJrnk9UN54zHiQJgKyG2z1">Default device index, video-file source, description text, reading before opening, missing file, error messages, safe release, context manager.</td></tr>
+<tr data-page-node-id="WOKBjmLRSarOGyHdY11mey"><td data-page-node-id="ZwbrIflHEGFmSgB3IbumEE"><code data-page-node-id="xxysebIr4OLr7J9rK6ovDo">tests/test_detector.py</code></td><td data-page-node-id="HuGRSamloHtLk98megG7b2">14</td><td data-page-node-id="AOG8IXhXYIfwuoIvkJfdcW"><code data-page-node-id="dvAcZ4SnQLxBjkVLUs3q6d">Detection</code> structure and label formatting, confidence filtering, detector state, missing local model, device resolution and naming.</td></tr>
+<tr data-page-node-id="iw6x3K7G8K5bDmpgFYzYU5"><td data-page-node-id="mIGVYxpL0vhglFfh5TYEq3"><code data-page-node-id="cJAbj7VdTur6Z5Hr0aCBpI">tests/test_analytics.py</code></td><td data-page-node-id="36IQ1yr7Gx1BNFtIGocAFm">16</td><td data-page-node-id="jliD8nkeAAelAyi4WusiKt">Class counting, frame-rate calculation and reset, session accumulation, peak objects, most-frequent class and tie-breaking, averages, summary dictionary.</td></tr>
+<tr data-page-node-id="iGEqldqB75YbOSmQjL7iQw"><td data-page-node-id="0dBWZj63GnxTAPwFnGYrAg"><code data-page-node-id="7cDvGr9nyTy0KO3JaXdt4V">tests/test_controls.py</code></td><td data-page-node-id="TjYtBKYfUyWKTOIix3dIpe">12</td><td data-page-node-id="kPSlvBCnojpIhei9vINMhe">Every key mapping, upper-case handling, unmapped keys, confidence adjustment and clamping, help-line formatting.</td></tr>
+</tbody></table>
+<p data-page-node-id="aEFC555tDcU07zNIaVOWIw">The specific areas requested of the suite are all covered: argument parsing (FR1), camera error handling (FR1, NFR3), detection structure (FR2), confidence filtering (FR2), object and class counting (FR4), FPS calculation (FR4), session statistics (FR7) and keyboard controls (FR5).</p>
+<h3 data-page-node-id="DrxfwpHvEIk8dw20yXOVOc">17.3 What the Tests Do Not Measure</h3>
+<p data-page-node-id="jju7KMCymEVoNPXieybrLx"><strong data-page-node-id="FjgfaYZhJcnLE5ZGeGFxsY">Software testing and model evaluation are different things, and this project keeps them separate.</strong> The unit tests verify that the application behaves as specified: that arguments are parsed correctly, that errors are reported, that counts are accumulated correctly and that keys map to the right actions.</p>
+<p data-page-node-id="0zL2xoVt8bKyrxHKGw9EGk">They say nothing whatsoever about how accurately the model detects objects. No unit test in this project asserts anything about detection accuracy, and none could — accuracy is a property of the model measured against labelled data, not a property of the application code.</p>
+<p data-page-node-id="vzIDmi5N53hykfrb164mTN">The model's behaviour is discussed separately in Section 18 and Section 19.</p>
+<h2 id="section-18" data-page-node-id="B9oSCvlwUa9abaegaqaZiM">18. Evaluation Methodology</h2>
+<p data-page-node-id="D4WfCqpNPLBNCVHxFM6St2">Because this project uses a pretrained model rather than one trained here, the evaluation methodology has to be stated carefully. This section explains what is not evaluated, why, and what was measured instead.</p>
+<h3 data-page-node-id="6QRUCSYStmdsKCWo3P08li">18.1 No Formal Accuracy Evaluation</h3>
+<p data-page-node-id="09WiQFaWswBrP3LP4RpwaA">This project <strong data-page-node-id="LGCTbukzPzV14bKY9ZSNIE">does not perform a formal accuracy evaluation</strong>. No labelled test dataset was created for the model, and no ground-truth annotations exist for the frames the application processes. Consequently, the following are <strong data-page-node-id="YlXhgVuZAs8nhspGQctBjD">not</strong> reported anywhere in this report:</p>
+<ul data-page-node-id="oohWd8mZ7q8kcCbPb3CFto"><li data-page-node-id="8VHDoWKWuzZWYVC3VoCrHk">Precision</li><li data-page-node-id="BHvwSjHmJSDfBVk5pg0VuI">Recall</li><li data-page-node-id="CKrSIpB4z3Buo0wKQODoIq">F1 score</li><li data-page-node-id="eUkDUUsUOj1c6eCqtrZuYm">Mean Average Precision (mAP)</li><li data-page-node-id="brW7zfByzyCRdchHZShmBW">Any other quantitative accuracy or quality metric</li></ul>
+<p data-page-node-id="HArRTMrjdPBEQ35lwm7ngl">Reporting those figures would require a labelled evaluation dataset and a defined evaluation protocol. Neither is part of this project, and inventing figures would be meaningless. The limitation is restated in Section 21.</p>
+<h3 data-page-node-id="Yu4jJIUTOG3X1n7GShkx1z">18.2 What Was Evaluated Instead</h3>
+<p data-page-node-id="CODFqtZixlUL8P0kVmdgVc">Evaluation therefore focuses on <strong data-page-node-id="6jk30q65iU5L1YUvOvNl1E">functional correctness</strong> and on the <strong data-page-node-id="LQZ2DTuyY3yVmxzU50pySX">behaviour of the live system</strong>:</p>
+<ol data-page-node-id="PE5fq5cQk9tiEYl3r4D4Yd"><li data-page-node-id="w9Zs19vt4gScNkBtaOQjQ6"><strong data-page-node-id="GMx9UkEtTYSfGCbb0JuB40">Automated functional evaluation.</strong> The 62 unit tests described in Section 17</li><li data-page-node-id="NdrAemUNAZpfpafD1rpVGd">   verify the specified behaviour of every module, and are run with <code data-page-node-id="K5D20GN5LI3ZyC38F68MzN">pytest</code>.</li><li data-page-node-id="MG6YU0mNeGRvutm1nlJDqz"><strong data-page-node-id="b1hyo9Z8ARdN3SFx3cxIsr">Live system observation.</strong> The application was run against a physical webcam and</li><li data-page-node-id="AentjfmEF0LB1bIdg8lWLF">   observed directly. This verifies that the components work together end to end, and</li><li data-page-node-id="0c7NyxfZfEkm7znhATJhRx">   that the system behaves as intended under real input.</li></ol>
+<p data-page-node-id="ndaUVjsJfaE3JmBaqHThDH">The live test verifies that:</p>
+<ul data-page-node-id="cF8VmfrLbI6UCueBVnf5iz"><li data-page-node-id="rtvaxARZbPPTtmbqtqAETR">the model loads and reports its class count;</li><li data-page-node-id="BmzRjZMnzuGkkgTDxPFdDM">the webcam opens and delivers frames;</li><li data-page-node-id="ViS2NpY9QaUCTpBAktEysr">inference runs on the live feed and produces detections;</li><li data-page-node-id="x6evaDcVrrMUqYb3QdchL0">bounding boxes, labels and confidence values are drawn correctly;</li><li data-page-node-id="vVvJZH5277Z1wVtc9saDi2">the statistics panel updates while the program runs;</li><li data-page-node-id="ajUgzNByFMPKHhpFT1gjPW">the keyboard controls respond;</li><li data-page-node-id="gHrHif3mWbL7PnlSCntD67">a snapshot is written to disk;</li><li data-page-node-id="ZziYnlJwbjGzRjEFK8IqDO">the session summary is generated on exit;</li><li data-page-node-id="xOJsXjcMlqQeUEuotoHNo3">the application exits normally.</li></ul>
+<p data-page-node-id="gfI8ojIVlMUd7myOpGQ97l">These are functional observations, not accuracy measurements. Detecting a person in a webcam frame confirms that the pipeline works end to end; it does not quantify how often the model is right.</p>
+<h2 id="section-19" data-page-node-id="pMrVZtMuhZzsTdANcCsKsN">19. Actual Experimental and Demonstration Results</h2>
+<p data-page-node-id="RxHNa7ToPJy7dtgBVSbR4L">The figures below are the recorded output of <strong data-page-node-id="2s383Y1Av9oz3hPvwXQNJS">one session</strong> of the application running against a physical webcam. They are reported because they demonstrate that the system works end to end under real input.</p>
+<h3 data-page-node-id="ujv21OGxPAF1TzvcwUDbUG">19.1 Conditions</h3>
+<table class="three-line-table" data-page-node-id="PuB5MQPPYrwLlhu3HuJVcp">
+<thead data-page-node-id="zj8AbJaY3j6C3jHY3SwJLR"><tr data-page-node-id="LzMVHrGKvr9NG7PI1k7M7h"><th data-page-node-id="2ccImD99WhKJWJw4KkfciE">Parameter</th><th data-page-node-id="quNgBojeZB9SDNsBpwFJ7y">Value</th></tr></thead>
+<tbody data-page-node-id="9y1GOtK8iXZILtEAfI06LH">
+<tr data-page-node-id="TSA8CcNM3nDoxks7V7mjIp"><td data-page-node-id="70pRcD56HECf0etS9KZZdT">Model</td><td data-page-node-id="ipwFbZlBgyG8gRh4EmqXrO"><code data-page-node-id="kgz8m59WpSk0coCH35HAQ4">yolo11n.pt</code> (pretrained)</td></tr>
+<tr data-page-node-id="DEIUVbvyVa6oJAWQEaBqsp"><td data-page-node-id="nYrC2nbsuy6gqHBxBvmrxa">Object classes available</td><td data-page-node-id="utJ9NzmVxu9bOiNIShYhsA">80 (COCO)</td></tr>
+<tr data-page-node-id="Cspn6FGL85D3YUY4Sv0jXd"><td data-page-node-id="JUIBGShleFxtg1xCNkHdJo">Inference device</td><td data-page-node-id="gsXJFLklGzlRVPqtuaW4Ba">Apple Silicon GPU (MPS)</td></tr>
+<tr data-page-node-id="uKiENXRvY1klSGuLOLqVIL"><td data-page-node-id="Nvu3dUuDYx27Syf90q1yUw">Confidence threshold</td><td data-page-node-id="2lvuDFZs3KaCUUBjYsGkMd">0.25</td></tr>
+<tr data-page-node-id="senyXmOHoftmobM9EPUDyb"><td data-page-node-id="cq7zPBkVHZjPQ5dTlpNiqY">Camera</td><td data-page-node-id="D3qUGOGtQAujHRuFPwYc0z">Device index 0, AVFoundation backend</td></tr>
+<tr data-page-node-id="CJ3sGlAUD6dHxgTI3othuP"><td data-page-node-id="CDyUNG0mGHsuaKNccoAcjE">Capture resolution</td><td data-page-node-id="c3HPE8YESd1r8wEWS39tam">1920 × 1080</td></tr>
+<tr data-page-node-id="iP4JoX7MRRVmdCMhjhWQj5"><td data-page-node-id="UGoLN4zK7dCQB9VlD4TWLP">Host</td><td data-page-node-id="t78OqDrsHAzq2OqLWMRRBc">One laptop</td></tr>
+</tbody></table>
+<h3 data-page-node-id="mGbmDt3fLh89Ht3FtnzwBi">19.2 Recorded Results</h3>
+<table class="three-line-table" data-page-node-id="qz3c0DxTl6AdxpRgbNwONB">
+<thead data-page-node-id="gjLMQgqCGiZUH9fSQh3s4b"><tr data-page-node-id="Si4rG3pVoE2zzdjkpaywQy"><th data-page-node-id="GqlAUmXRze9uxuTIF6FnwJ">Measurement</th><th data-page-node-id="iKWTA7Hg0UC7c6GkBvVxpL">Value</th></tr></thead>
+<tbody data-page-node-id="kGkiXlQ7NxEiEolFvnAj8P">
+<tr data-page-node-id="M531Xt25v4HlgiDj9HjdXN"><td data-page-node-id="Gq4FYAoVr0nUMgeqjJeGuK">Frames processed</td><td data-page-node-id="fH0Ns5rFmEtzErqzMxpHGF">1063</td></tr>
+<tr data-page-node-id="4O1PcECyCH0mUgpY7dIgrL"><td data-page-node-id="HgnOvB7g1lVlTHcaOVBy77">Total detections</td><td data-page-node-id="fdOsh4rs00rfFJIDJNv750">1573</td></tr>
+<tr data-page-node-id="xSBiqTsbcsdUFxjQQWfgp1"><td data-page-node-id="hkPKWJsdXmXHff3oYmYBMG">Most objects detected in one frame</td><td data-page-node-id="c7UecXuzjOkSIBhVGXFmgE">5</td></tr>
+<tr data-page-node-id="Ds3TnSyaCZ9kZ5ElpkDiAO"><td data-page-node-id="54XzA0OFHRev4K3DVwmVu7">Average detections per frame</td><td data-page-node-id="DynCq7E9K12LAgF8Bk7nNG">1.48</td></tr>
+<tr data-page-node-id="SHodAwr4fKKCwu0VmPvo79"><td data-page-node-id="PiavonMPBNBaw5xERg9gg2">Average confidence</td><td data-page-node-id="v4jKeBaJlC5XWeqEQJn5Qy">0.739</td></tr>
+<tr data-page-node-id="wIoJj3wmiMPcnAZCpMnRIH"><td data-page-node-id="JnSMIduf8rEoRY2gKPnI4c">Average FPS</td><td data-page-node-id="gsHJYTMXGcKCErhNlyrFnJ">16.0</td></tr>
+<tr data-page-node-id="ot1fsEj8bUEdrLvYvHAo7D"><td data-page-node-id="x7aIR7GsSGSDpSaP7v8z6Q">Peak FPS</td><td data-page-node-id="eCbu6rG2niXCVVPDGq8gP6">19.8</td></tr>
+<tr data-page-node-id="objGupVCw6XYsaYP2n7Zqj"><td data-page-node-id="RXPVFquAcLLecVNCsYL3ka">Duration</td><td data-page-node-id="ctVyir4ViaUyqxbqPHhu6o">1:14</td></tr>
+<tr data-page-node-id="3lnZvHKSi25KaWnHYZmdp5"><td data-page-node-id="YoEkGTSEjknQaGuAlrPMWx">Most frequent class</td><td data-page-node-id="pDiu3p8E52ahpeKcY8jhpP">person (1290)</td></tr>
+</tbody></table>
+<p data-page-node-id="GFooiWDWyBXpRCBNzl9bAO">Snapshot saving worked, and the session summary JSON was generated successfully.</p>
+<h3 data-page-node-id="xPqZDFMCkNCX2fNvovhnFE">19.3 Per-Class Totals</h3>
+<p data-page-node-id="aq2xkSelHyMsDa2DWLHIdw">The session recorded the following per-class totals. They are reported as observed counts for this session, not as a measure of model quality.</p>
+<table class="three-line-table" data-page-node-id="dBAhULt1TXFfWpgVfEUaoj">
+<thead data-page-node-id="r19RWD2Y9kIurbsDFCdyN8"><tr data-page-node-id="vG6KYLiWTlodJo8AzBEMu4"><th data-page-node-id="cg9eBOk5IIJHFnGUvWGqRq">Class</th><th data-page-node-id="JX43MuvgLGAmnBLxtn4SAW">Count</th></tr></thead>
+<tbody data-page-node-id="8gQJqW2eFUQ5SAieOL8V4q">
+<tr data-page-node-id="fth3q2E6gIWs7cEDCI5fWD"><td data-page-node-id="q7gJjxbGbv6PIkuVdCNugF">person</td><td data-page-node-id="j99E71LRnJi2KoYjWFIpN6">1290</td></tr>
+<tr data-page-node-id="j261w36OGobSYEF4ptLyl7"><td data-page-node-id="2HHy6Jq3vPNvPXYMjjBb1L">cell phone</td><td data-page-node-id="iReylv1BHQz8PiQ4ldYUlx">85</td></tr>
+<tr data-page-node-id="pdDDDKB3N0uNDTbD3xoFAe"><td data-page-node-id="cgLGpm4BF8w8um3sxyEDdd">toothbrush</td><td data-page-node-id="vDsitkJzPvI40NQ9aCm6NQ">45</td></tr>
+<tr data-page-node-id="IHHIKnftsWjTm7nXsBc6DX"><td data-page-node-id="7q6jYytR47ZLaD3JSgsrY1">microwave</td><td data-page-node-id="0uDu9dwIPQqkuuM1LbuFwo">44</td></tr>
+<tr data-page-node-id="dyA9oUpWYBGi2kYABUJD3o"><td data-page-node-id="1vIflLQOHv99YiklWU2ccp">tv</td><td data-page-node-id="vbLEcnFO9lQt89ke3C8Hy1">37</td></tr>
+<tr data-page-node-id="J33FWB6FdkkDcOlsfVPvn3"><td data-page-node-id="s80XwIAH4V7N0L1uqGXype">bowl</td><td data-page-node-id="wy7m8xcXnYU5lc184u4CJE">22</td></tr>
+<tr data-page-node-id="wqr6P7CCsh2FIECLQvrLsd"><td data-page-node-id="z1VVObOCS1SDkS1BfEscsE">dog</td><td data-page-node-id="VcCjqOVBSbO3k5J705K0Dm">14</td></tr>
+<tr data-page-node-id="qcap1L4wVGkSLFOn9PHyBQ"><td data-page-node-id="uvXTNMVbhNMlVQlI2o0LCh">refrigerator</td><td data-page-node-id="h5yMYGmCsXYhYCCNbFojU0">9</td></tr>
+<tr data-page-node-id="xvpuhfElNufXmd1DCaaC27"><td data-page-node-id="BAMsUWBoRl6l27GNLVSCtG">oven</td><td data-page-node-id="3YTM5H7qJt3XmLQgxnTw72">8</td></tr>
+<tr data-page-node-id="EQiQQz7UVo1CsYtSvP19sS"><td data-page-node-id="lUDMKXJaZuGWt0QhCr9y4B">chair</td><td data-page-node-id="VRvMqfOmU7kFnYxclEmy2v">7</td></tr>
+<tr data-page-node-id="OZ0XWVvZChagYr43TjchfU"><td data-page-node-id="kEHmGyq9Zm8wPiy3Gs5hzS">wine glass</td><td data-page-node-id="DtZ5Pz6fOtf3uFligOSG6E">6</td></tr>
+<tr data-page-node-id="SLFsPTJWkjVA49P7Gk2MFG"><td data-page-node-id="JqHWcFAsvCld2CPwzfUhR0">bottle</td><td data-page-node-id="AE8eMQuWFFktxXWnRYbPZt">3</td></tr>
+<tr data-page-node-id="mzVYa0x5HqDFAqAL5Mj4z2"><td data-page-node-id="pNeYdP4b7uO9w7jUIGBTYq">fork</td><td data-page-node-id="Tai6cYdGLuYZEUtBreExu8">2</td></tr>
+<tr data-page-node-id="fuORloVvgCjMXF0dvX15l5"><td data-page-node-id="BamVjTnGKeEz8V6B6U4BO8">potted plant</td><td data-page-node-id="AcCVDDvir2MdB7AK13cqzl">1</td></tr>
+</tbody></table>
+<h3 data-page-node-id="MCBRYypZxxfjCUWQ4l9wrn">19.4 How These Results Should Be Read</h3>
+<p data-page-node-id="F4dz7njyeQ3T6W2W5oTBUC"><strong data-page-node-id="fVk46tgGnu8lcUElDpEwYD">These are observations from one laptop and one webcam session. They are not a benchmark.</strong> The frame rate in particular depends on the hardware, the camera resolution and the model size, and will differ on other machines. The detection counts depend on what happened to be in front of the camera during those 74 seconds, and carry no information about how often the model is correct.</p>
+<p data-page-node-id="RBOrpYqQWkarQcVa3SnGcO">No comparison is made with any other model, because no controlled experiment was carried out. The per-class distribution reflects the content of one room during one session and should not be interpreted as a measure of the model's ability to detect those classes.</p>
+<h2 id="section-20" data-page-node-id="VGflCP4FoaaoAAbjb1zA4q">20. Screenshots and Evidence</h2>
+<p data-page-node-id="LQSQ2D15lqJ3zvwaO3Tgim">The following figures are the evidence available for this report. Where a screenshot was not captured, the item is marked as a placeholder for the student to insert.</p>
+<table class="three-line-table" data-page-node-id="VoZ1CmUk6qYPhiHzMlxpML">
+<thead data-page-node-id="52Ns4E7fFfkeUIIf7sx4hi"><tr data-page-node-id="Y8EzqkVLilvMpdhn4k2aHl"><th data-page-node-id="OaceYwmmOCPHtn8E9UL6Jk">Item</th><th data-page-node-id="YTaCCMfeaZanp3i3ZL9Oiu">Status</th></tr></thead>
+<tbody data-page-node-id="YEFtZGOORM94CvBTJeffsH">
+<tr data-page-node-id="oJSkDdtLLO9zLGWj1X02hF"><td data-page-node-id="opRt3DMhYmoNFQiMs0SBBX">Live webcam view with detected objects</td><td data-page-node-id="BXXeYyfa5iecqKO0BT95O7"><strong data-page-node-id="M5CqGyS8NaGll7kDh7jysk">Included</strong> — Figure 6</td></tr>
+<tr data-page-node-id="zCFXKyVFarYS7bQbxDCR81"><td data-page-node-id="V6GiuW9S8UvdFsI74P6Qiy">Snapshot output file</td><td data-page-node-id="KAG1FP8yAm9laEbYukWmpB"><strong data-page-node-id="qUEGJpLCbT1yg6gRzAoQK6">Included</strong> — Figure 6 is the snapshot written by the <code data-page-node-id="aSRAWCJkY9bGYwqjkwM4TZ">S</code> key</td></tr>
+<tr data-page-node-id="RrrllCcimG3EPGN2Wd2UBW"><td data-page-node-id="S9uiHUvWEQZSCNTQzgen9Q">Session summary JSON</td><td data-page-node-id="dgXn8cAzF0ASC0EdkRlaoe"><strong data-page-node-id="W3p19fTDwqM2QmwqsTX1uv">Included</strong> — shown as Listing 1, the actual file content</td></tr>
+<tr data-page-node-id="EmqcaAtUPS0fvCe5IknxgC"><td data-page-node-id="K9aLExB4j0R6LXSjSubDeP">Repository structure</td><td data-page-node-id="WViLxIvftvmRsIB2DjiylG"><strong data-page-node-id="PlTEs7GsLbk8A0XWO0PzXI">Included</strong> — Table 1 is generated from the repository</td></tr>
+<tr data-page-node-id="DdwPHmhNhWYpZYTAV9jqdS"><td data-page-node-id="4Qk9CnnBw2YbWdJXiNwFMD">Git commit history</td><td data-page-node-id="NZFz7rUTZhKHPHw6vGKNPs"><strong data-page-node-id="IR4zvSq524X7BBRt9CnTCV">Included</strong> — Table 2 is generated from the repository</td></tr>
+<tr data-page-node-id="dprSjWkn5lKq1UTGJ9SxDg"><td data-page-node-id="WHY8Ke6Y4CQ3czJ1FjoTNW">Terminal startup and model information</td><td data-page-node-id="iaXoG7G2p0KHKvtPH8SDFS"><strong data-page-node-id="jEw6LEWWB6d7fYg7GGPWPb">Placeholder</strong> — insert a screenshot of the terminal banner printed at startup</td></tr>
+<tr data-page-node-id="Vq2bh05WuIeHpKQU8r9FiQ"><td data-page-node-id="uHGUHYoaQAoD3OWAV8EfKI">Controls status message</td><td data-page-node-id="lEkHT8ECqdIjNnpEAyMI3e"><strong data-page-node-id="JOPX691n9ue5p69gfRxh4B">Placeholder</strong> — insert a screenshot showing the on-screen confirmation after pressing <code data-page-node-id="Z3xUuA1RaGTP4YTIlIpX8L">S</code></td></tr>
+</tbody></table>
+<h3 data-page-node-id="5uG8cNGk97YwOyq3qkChlo">20.1 Figure 6 — Live Detection</h3>
+<p data-page-node-id="AmuptKUz8RJh02wUi7FE2s">The screenshot below was saved by the application itself, using the <code data-page-node-id="FY4n7s27DMiWc12cF41jsw">S</code> key, during the session reported in Section 19. It shows the live annotated frame: one detected <code data-page-node-id="HYxI4XSyffEvf46bYFe7aO">person</code> with a bounding box and a confidence of 0.94, the statistics panel in the top-left corner, and the controls panel in the bottom-left corner.</p>
+<figure data-page-node-id="rU9fU9L5JWK1nO9UDHiHZk"><img src="images/fig_live_detection.jpg" alt="Figure 6. A snapshot saved by the application during the session reported in Section 19." data-page-node-id="7TMaNIJi5ytp3kkWPH8ufX"><figcaption data-page-node-id="Ae5Cx2cq1HweXd7848cFDe">Figure 6. A snapshot saved by the application during the session reported in Section 19.</figcaption></figure>
+<p data-page-node-id="bDUuUGk0zGst1Dwixl6tiv">The statistics panel visible in the snapshot shows the state of the program at the moment the key was pressed: 1 object in the frame, the class <code data-page-node-id="tWknkonuVKnPSblhmalx6T">person</code>, a frame rate of 16.2 FPS, the active confidence threshold of 0.25, and running totals of 1023 frames and 1533 detections. Those running totals are consistent with the final totals reported in Section 19, which were recorded at the end of the same session.</p>
+<h3 data-page-node-id="L6mqdENS92H6hCbdebL2U5">20.2 Listing 1 — Session Summary File</h3>
+<p data-page-node-id="JtIoD7IbZZ71CUpMA9ri6C">The session summary is written to <code data-page-node-id="4IkeqlBYGNvNQa24NrOBQr">outputs/session_summary.json</code> when the program exits. The content below is the file generated by the session reported in Section 19, reproduced in full.</p>
+<pre class="code-block" data-page-node-id="0KFFVP20axigF8NiFMT6aH"><code data-page-node-id="FRbqrsGW0uBoAK1PFInTth">{
+  &quot;started_at&quot;: &quot;2026-09-18T00:45:36&quot;,
+  &quot;duration_seconds&quot;: 74.32,
+  &quot;frames_processed&quot;: 1063,
+  &quot;total_detections&quot;: 1573,
+  &quot;most_objects_in_one_frame&quot;: 5,
+  &quot;average_detections_per_frame&quot;: 1.48,
+  &quot;average_confidence&quot;: 0.7388,
+  &quot;average_fps&quot;: 15.98,
+  &quot;peak_fps&quot;: 19.78,
+  &quot;most_frequent_class&quot;: &quot;person&quot;,
+  &quot;class_totals&quot;: {
+    &quot;bottle&quot;: 3,
+    &quot;bowl&quot;: 22,
+    &quot;cell phone&quot;: 85,
+    &quot;chair&quot;: 7,
+    &quot;dog&quot;: 14,
+    &quot;fork&quot;: 2,
+    &quot;microwave&quot;: 44,
+    &quot;oven&quot;: 8,
+    &quot;person&quot;: 1290,
+    &quot;potted plant&quot;: 1,
+    &quot;refrigerator&quot;: 9,
+    &quot;toothbrush&quot;: 45,
+    &quot;tv&quot;: 37,
+    &quot;wine glass&quot;: 6
+  }
+}</code></pre>
+<h3 data-page-node-id="BDHxIInlCXZZdXjHq2caGW">20.3 Table 1 — Repository Structure</h3>
+<table class="three-line-table" data-page-node-id="IJXsv6tndMEpXyRGJQzV0u">
+<caption data-page-node-id="bYxjawQ2zHy0sM31DsfBob">Table 1. Files tracked in the repository.</caption>
+<thead data-page-node-id="XjdYSZgf3RG1TyGQqdG7vC"><tr data-page-node-id="33Ly52Ah6MvucGPC8uKPB1"><th data-page-node-id="VLAAG1KaiCDD26LAq7GKsQ">Path</th><th data-page-node-id="ERTrvR17fcOgoE68YjBBRr">Role</th></tr></thead>
+<tbody data-page-node-id="ShtJp4EBdp1s5pkJJJDeyS">
+<tr data-page-node-id="QOEBwmkxusVgBXyh52hSNn"><td data-page-node-id="yOdEUzcclvT9zlToj161j9"><code data-page-node-id="zmJteqsFwQDm2bA5HaCsgm">README.md</code></td><td data-page-node-id="0svfzAWkc4hMzK7MLjh16y">Project overview, installation, usage and references.</td></tr>
+<tr data-page-node-id="IjcEMdC35xl7pgRIcdkiu1"><td data-page-node-id="5SiohngFjrZXt0ZyNbfJx3"><code data-page-node-id="R40tW5eXVeEeiuPmvCqw8l">statement.md</code></td><td data-page-node-id="FlyK6DoqYQeudw4MR0UURk">Problem statement, scope, target users and feature summary.</td></tr>
+<tr data-page-node-id="EwjCYQ3Czhp5p918c9JCm7"><td data-page-node-id="b5mGIf8WObcVpqQnseEE5W"><code data-page-node-id="AWnemmkav4vXwxZgXjg6dQ">requirements.txt</code></td><td data-page-node-id="hYxIBC8IKTCBiBrCPG6wAi">Runtime dependencies.</td></tr>
+<tr data-page-node-id="Vyoy6pxaYoayONT8aeyv51"><td data-page-node-id="LXeFYr3JXQySaYvqRBDmLY"><code data-page-node-id="AExmv12qVWLqFJ1sGfpyZA">pyproject.toml</code></td><td data-page-node-id="9lcAsGFfUIkFL4yQlgvh5y">Project metadata and pytest configuration.</td></tr>
+<tr data-page-node-id="BYacYsBSnRNRZvPstQhGlB"><td data-page-node-id="dSLYoeSDgDbBJWO5ehyx9a"><code data-page-node-id="Pr33JZUv9sQkBPB6JqsnS5">LICENSE</code></td><td data-page-node-id="tTokpxTemKS558uOJN1skO">MIT licence, with a third-party licensing notice.</td></tr>
+<tr data-page-node-id="Qt4ZJCK1gvGYmU8NjtArel"><td data-page-node-id="kGjTFaiz0PQiO1QlYIqWZ6"><code data-page-node-id="1gzyGf6LrQdU3ctV7aN0sj">.gitignore</code></td><td data-page-node-id="iKY0NbSKcWN2K3rdSaUU2v">Files excluded from version control.</td></tr>
+<tr data-page-node-id="cPaAFkCux5QKRm1v1ESsyu"><td data-page-node-id="HQVUCUnG14XwBeqJOaGQf7"><code data-page-node-id="5ZS8mmxGsajoib1l57T8nD">app/__init__.py</code></td><td data-page-node-id="U3zm0skfrfBDpRGrpikGxM">Package metadata.</td></tr>
+<tr data-page-node-id="Lx6KdYNgNSEz0V6NaqmQFS"><td data-page-node-id="okYYz1UXm3T177pBHiwefr"><code data-page-node-id="ICUplWX7zDGMPXnaB6thF5">app/__main__.py</code></td><td data-page-node-id="27RYhX2msqahfcFYayjaND">Entry point for <code data-page-node-id="reV0x9AmmhZlpNXusMovXC">python -m app</code>.</td></tr>
+<tr data-page-node-id="vvJt6gxfjyYmTPqzpZTkLx"><td data-page-node-id="rQcNqzWl1LGbhbnKmd04sn"><code data-page-node-id="PR2prBSAfSZ7Wvb71gnZHa">app/main.py</code></td><td data-page-node-id="ckS0VKAQuaNgkBLvks6HQU">Command-line interface and main loop.</td></tr>
+<tr data-page-node-id="bWd6vnD6mYAHDlQYGpamFq"><td data-page-node-id="fo3aXz6L3ip2l75oxYAivo"><code data-page-node-id="lGnfhAQiuVzD1T76CAacLM">app/camera.py</code></td><td data-page-node-id="xYhdPxPGPixqXdq3kAb0YT">Webcam capture.</td></tr>
+<tr data-page-node-id="Pk5zMuvL96GPBN0mGnLOzj"><td data-page-node-id="6WEryqtkGH8wHIWHdoM9pv"><code data-page-node-id="Fb5rMBjPZ0oV9Fq0JvzETu">app/detector.py</code></td><td data-page-node-id="SI065VU5XnQ0C1aQn4vpcS">YOLO11 loading and inference.</td></tr>
+<tr data-page-node-id="x6eR2y6RwsPHNVqNawf3lO"><td data-page-node-id="1vGxtF8yEdi7xzOZY42MiD"><code data-page-node-id="nga35g9CDwndzt5zXoW3XZ">app/analytics.py</code></td><td data-page-node-id="n3EwRGUMEbnUwiryXWjXGd">Frame-rate measurement and counting.</td></tr>
+<tr data-page-node-id="ty2eNi174k3SVCTtBGT9Mt"><td data-page-node-id="reBScDh98kqgBXFLJHUBTV"><code data-page-node-id="eMG0iHAx5zr5VXOwkCbHPB">app/renderer.py</code></td><td data-page-node-id="AlesGtF9W6PXLwI4cltJ98">OpenCV drawing.</td></tr>
+<tr data-page-node-id="SHPA2t4NAKGxq9YcV4U6ox"><td data-page-node-id="yrZnUj1vPQoJBfIEMOSXaz"><code data-page-node-id="aOlg4L0HbeADClFPNAhbly">app/controls.py</code></td><td data-page-node-id="QRWB0H8gFSE5SO2HEx65pZ">Keyboard controls.</td></tr>
+<tr data-page-node-id="M6F4TxnCdT3kS2H3p8GSgd"><td data-page-node-id="o3GLtZrwHDe3ObAEAIvrx6"><code data-page-node-id="IYnsUvM6Jsd1P2FivREapa">tests/test_main.py</code></td><td data-page-node-id="Fy43ngRN5LZs2EAOka9s8i">Tests for argument parsing and output files.</td></tr>
+<tr data-page-node-id="fcf01WElBpZTSWbYAyTfgr"><td data-page-node-id="IRP7nElngraudJAhW5m5GP"><code data-page-node-id="nLrvbJwpMU01HK9NfEMNOo">tests/test_camera.py</code></td><td data-page-node-id="cXSrpbppbSpUhlZkJi0BK7">Tests for camera behaviour and errors.</td></tr>
+<tr data-page-node-id="EJSzapAiCGKp7ESkgjZdcF"><td data-page-node-id="J5XlFa6Ysf0AmZjXnG8J24"><code data-page-node-id="FHWnOGRWPFlHTOvc2KdAWS">tests/test_detector.py</code></td><td data-page-node-id="Ffy5kz47SU8GiiDdp8G0eF">Tests for detection data and filtering.</td></tr>
+<tr data-page-node-id="fBVaUKocLtG0v2WAGcWD7B"><td data-page-node-id="K1yBULoSgBmzfeGS0fCGVy"><code data-page-node-id="9ODSdG0WbGFo3SSr5D3Pcp">tests/test_analytics.py</code></td><td data-page-node-id="ABn33E5Msyh5hmn5sb7xtg">Tests for counting and frame rate.</td></tr>
+<tr data-page-node-id="B5lDR3uzHtrk47H6YnJXJe"><td data-page-node-id="5Xxse8AfKLMUtytjyoHi9k"><code data-page-node-id="MgeuPthLX9g36AxlZztnFX">tests/test_controls.py</code></td><td data-page-node-id="QkiiNco0opEabM8fbBDDNE">Tests for key mappings.</td></tr>
+<tr data-page-node-id="lxLa1btPx14smUwCYDjw8n"><td data-page-node-id="lLFpGFm3xDJPhQqKtsXOK3"><code data-page-node-id="QfI6qE8ZvNDIjMZeyHHhcc">docs/architecture.md</code></td><td data-page-node-id="wTgFZAtPtFXyjFPK3A32wm">Architecture description.</td></tr>
+<tr data-page-node-id="JhawxhBUQ2LLxQPYH7Qqpr"><td data-page-node-id="WGedNoQRRKhUvTNd3aG1Eb"><code data-page-node-id="G1XwGASkKUo46fPZljml7i">docs/workflow.md</code></td><td data-page-node-id="nH6BWs2t9H9ovpGC47ajTJ">Workflow description.</td></tr>
+<tr data-page-node-id="4IrBvifjLe0M5Uv0JM0V1r"><td data-page-node-id="vu1sQkew0gQFfVwNBonHSz"><code data-page-node-id="tfZT5uBti7CDZk8O233YyR">docs/diagrams/*.mmd</code></td><td data-page-node-id="gBA23numpSclbRtFTHgjGF">The five Mermaid diagrams.</td></tr>
+<tr data-page-node-id="FuAs1Ksk4GcbFlfcyqnvWc"><td data-page-node-id="7oBKFEsZzLPpEBTBTomKcX"><code data-page-node-id="wzTDTGfFeSo30dXcgzAaaR">outputs/.gitkeep</code></td><td data-page-node-id="yAMOfbJUKu6WRWA8Bwxp0b">Keeps the output directory in the repository.</td></tr>
+</tbody></table>
+<h3 data-page-node-id="1dThYZmpSUW1PvvbAaz5Gx">20.4 Table 2 — Commit History</h3>
+<table class="three-line-table" data-page-node-id="cw6EzzdMy0P5i5jEqUimrY">
+<caption data-page-node-id="FZD01SDx34K7dlHknKlufS">Table 2. Development history at the time of submission. The messages record meaningful stages of work rather than being split into many small commits.</caption>
+<thead data-page-node-id="RFowqPv5f8nXbyGGXSSc0n"><tr data-page-node-id="TqL3wonKxDnE2Q9SOWuqF3"><th data-page-node-id="DEWJ6j0A61y3MTra3JHFwl">Commit</th><th data-page-node-id="zCm7e4pZx6pKsJUAePxQ0V">Description</th></tr></thead>
+<tbody data-page-node-id="jSOB0goXvS04Bhy98x5Che">
+<tr data-page-node-id="gLctBdADwSOZkfriyYYBKX"><td data-page-node-id="iettjHW6TaXsvwktDl79XO">Initial commit</td><td data-page-node-id="hDSC89lDLVDMo9zsm7E2Em">Real-time object detection and scene analytics with YOLO11.</td></tr>
+<tr data-page-node-id="1wERjXBorHzL4YJyHRw6wM"><td data-page-node-id="iSycIxP8mnLeBOKj8vyKzK">Set copyright holder and repository URLs</td><td data-page-node-id="RnRHm00WIOlNnfConOOMNF">Repository metadata.</td></tr>
+<tr data-page-node-id="RNsajsedcIFq2yJAVbUuVH"><td data-page-node-id="8cq5FIEVAqXSyahqkLJMhc">Stop tracking internal assistant workspace data</td><td data-page-node-id="TrzNoPXHFKzzMiO8WTPMSc">Keep working notes out of the repository.</td></tr>
+<tr data-page-node-id="aGI5uU7u8CQXNTeHgIgjVf"><td data-page-node-id="eJOqqZ5YP2X2dRjyHddowR">Record GitHub publication and fresh-clone verification</td><td data-page-node-id="woxPhK7GnIp5EW7iORpdWe">Verification of the published repository.</td></tr>
+<tr data-page-node-id="kqhnTmPEqOWdC8NxP1oh5O"><td data-page-node-id="abJZMDTnfwRZE2vAoDXgwP">Fix test polluting the working directory</td><td data-page-node-id="yDo03JkXGEFZrV23ovdiFG">Test isolation correction.</td></tr>
+<tr data-page-node-id="KBTZdLpx00tupytF3fDEpm"><td data-page-node-id="ukYsNZ3aqkHZFSmk6Hxp0S">Make the program name adaptive, and harden the Mermaid diagrams</td><td data-page-node-id="Y0mtOU0Xw6qi3AUoX9gdIS">Diagram and naming corrections.</td></tr>
+<tr data-page-node-id="K9GBm2mUP9rxqFMlqRyoYd"><td data-page-node-id="HHaz2T5mfewB0ee0hgDGqs">Diagnose and report OS camera-permission denial explicitly</td><td data-page-node-id="EktDTaBMjO5lO1yuGWM0lf">Improved camera error reporting.</td></tr>
+<tr data-page-node-id="2QWzDJqxPzJgbig9V95SwT"><td data-page-node-id="77e8ugThhvJY3nacI6gTM6">Verify the live OpenCV window</td><td data-page-node-id="1B33GOQawNYOoIuKKx39BG">Corrected an earlier incorrect assumption about the display.</td></tr>
+<tr data-page-node-id="HWVyd4Of60fli7GR4M1hLH"><td data-page-node-id="V4FTkmB4TSXqyzNBHpd6BQ">Simplify the application architecture</td><td data-page-node-id="QMIHIqTfE506k6ODYywM78">Reduced the implementation to its present size.</td></tr>
+<tr data-page-node-id="aDD7zw1hNPNzVeK2la18YR"><td data-page-node-id="BnJ3uaE357u5oVZupP4viD">Reduce the test suite to meaningful unit tests</td><td data-page-node-id="YZHy3wRkRMLhVdJ7cIveia">Focused the tests on behaviour.</td></tr>
+<tr data-page-node-id="pdjPKWdeBcI5igrwurdfxs"><td data-page-node-id="orroXAPZgxH7t4AVcFw6F8">Simplify the documentation and the project statement</td><td data-page-node-id="KXupDjyf4qmvU30spRohRk">Documentation pass.</td></tr>
+<tr data-page-node-id="VojZ5jt8k7zaWVS4Hv4SxE"><td data-page-node-id="CjmHlRHHX2bsp4wUngHllY">Correct the YOLO11 citation, sample session and diagram details</td><td data-page-node-id="gKxfX6a7S3mxEUbVKHXMHu">Final accuracy corrections.</td></tr>
+</tbody></table>
+<h2 id="section-21" data-page-node-id="c6YO1TRNd29tE6C4M2QpEi">21. Limitations</h2>
+<p data-page-node-id="pAkazvT71y61CkkoShSkrv">The following limitations are inherent to the design and scope of the project.</p>
+<ol data-page-node-id="anMNknzqtZz2AiCJUAAVJj"><li data-page-node-id="Fkmiok6IpSmTkCtOQ1BfNd"><strong data-page-node-id="wEEg7fxTqJSZu5yoeQ5ZlL">Dependence on pretrained COCO classes.</strong> The model can only report the 80 classes</li><li data-page-node-id="FdSnisT4M9ypQtNJ4rZZyq">   it was trained on. It cannot report an object class that is not in COCO.</li><li data-page-node-id="zBQq64BYBGmC0nn6U6txKy"><strong data-page-node-id="ohIK8b5KE0iohChoOGAxqC">Objects outside COCO are not recognised.</strong> An object of a type absent from the 80</li><li data-page-node-id="VwgHEPY7V689MGAymFnRJO">   classes will either be missed entirely or assigned the nearest class it does know.</li><li data-page-node-id="ul6PSxdzp2ElxJQc1QRRe2"><strong data-page-node-id="jyGA775EYVe4swgSLHrcEG">Small or occluded objects may be missed.</strong> Objects that are distant, very small in</li><li data-page-node-id="FIBgeat173dYQ0aVSjp2QW">   the frame, or partly hidden behind other objects are detected less reliably.</li><li data-page-node-id="09QVpnIiqpo4JCRDy6v2Bp"><strong data-page-node-id="tmKR8CUxhPvNto0LDd9b2Y">Lighting and motion blur affect detection.</strong> Poor lighting, strong backlighting</li><li data-page-node-id="whwLcTrfGtMiL6tdYO6Ca2">   and fast motion all reduce the quality of the detections.</li><li data-page-node-id="rF4TGB7J8MV8PHmrjQpJMx"><strong data-page-node-id="7iPPTH26GcpjVEhmZnaJuo">Hardware affects the frame rate.</strong> The measured frame rate depends on the</li><li data-page-node-id="xobz0ghp2pohXolqGxFHcg">   processor, the GPU, the camera resolution and the model size. No minimum frame rate</li><li data-page-node-id="EqYBAEGLwcX8eDJMbCGb7U">   is guaranteed.</li><li data-page-node-id="hcfRosOmiQYStusN262xdQ"><strong data-page-node-id="tg22LzdxxhkUN8tdQzPiw7">Only one camera is processed.</strong> The application opens a single capture device.</li><li data-page-node-id="75N7FC5u2naYEVhVfYeHHP"><strong data-page-node-id="pfQJL7niuGzsglxZQAQLev">No object tracking.</strong> Objects are detected independently in each frame. There is</li><li data-page-node-id="oUdIZX8IgMrUkA1GsNaXBZ">   no identity that persists between frames, so the same object appearing in</li><li data-page-node-id="UdIB00OcZOH8qW3DqQAlYF">   consecutive frames is counted again each time.</li><li data-page-node-id="ZmVksPPMBECZMpEGOQqsKF"><strong data-page-node-id="gGx9MqnD9JFF14aR9WGG3v">No custom training.</strong> The model was not trained or fine-tuned on any data</li><li data-page-node-id="pJwmPDB7bYbOBtDtQ8nr1M">   specific to this project.</li><li data-page-node-id="XfTSH7Z1s2c7w1aBT5bXA1"><strong data-page-node-id="xsoShmixVVSJhKPjSw5ZM7">No formal accuracy evaluation dataset.</strong> No labelled test set exists, so no</li><li data-page-node-id="rMET9C00HdBToSRdRMAIGd">   precision, recall, F1 or mAP figure can be reported.</li></ol>
+<p data-page-node-id="r0Bmj2IfqACpbqEvogBCs0">Limitations 1 to 5 concern the model and the hardware; limitations 6 to 9 concern the scope of the project as defined in Section 5.</p>
+<h2 id="section-22" data-page-node-id="bDTX4VzKaM9T7qM50mC5c6">22. Challenges Encountered</h2>
+<p data-page-node-id="FuiLTcNd3yTsRcrTlsrTXf">The following difficulties arose during development and were resolved as part of the work.</p>
+<ol data-page-node-id="gic267DXdmHStgr9WsLt8X"><li data-page-node-id="dJQESKlJxbZmUvZFaQ34GD"><strong data-page-node-id="BuurxeFpAGHiEttKXlcDkB">Webcam access and camera initialisation.</strong> Opening a camera is not guaranteed to</li><li data-page-node-id="LDZK3D8ZpGoizxIVXXz4MM">   succeed, and when it fails the underlying library reports it in a way that is not</li><li data-page-node-id="B9L2FJbmI0sFm4Uqa2YNbQ">   helpful to a user. The cause was investigated and the application was changed to</li><li data-page-node-id="bmI796Z23LWEGZyK4eTGP6">   raise a <code data-page-node-id="RKAae9XyJAqcCNap6Whp5i">CameraError</code> that names the plausible reasons — no device, another</li><li data-page-node-id="ucCmYqWh6uOW1NLx0LYZse">   application holding the camera, an operating-system permission that has not been</li><li data-page-node-id="vUU8oruTCuH7wnlbKmOyRN">   granted, or the wrong device index — instead of passing through the library's own</li><li data-page-node-id="AsdJwR8Fcqk8WxXpNKfB9F">   error.</li><li data-page-node-id="RoqcFRhytx52yTeNOUtElW"><strong data-page-node-id="VbSaquL3ptiE3c3ALnnIyc">Operating-system permission for camera access.</strong> On macOS, camera access is</li><li data-page-node-id="EDttJAD55cVsoiXkEEpvoY">   controlled by the operating system and is granted per application. A process</li><li data-page-node-id="5oYxMmRGtMZi9LkmVDQdS0">   launched in a context that has not been granted permission receives no camera</li><li data-page-node-id="f8RpTLGW7BKM8ll9rabsCj">   access at all, even though the hardware is present and working. Understanding this</li><li data-page-node-id="zkRMufgc4a0LXR8N7827jB">   required distinguishing "no camera attached" from "camera present but not</li><li data-page-node-id="p3Uy6QtJ6Se7hwYJB17Exk">   authorised", and it is the reason the error message explicitly mentions</li><li data-page-node-id="UAajC4qCAZCCqFTHA8CFGB">   permissions.</li><li data-page-node-id="DRYNcUNJpeJMQaVJhcZ1tV"><strong data-page-node-id="Y57WJS111SRTtvMVFbK7Er">Dependency and environment setup.</strong> The Ultralytics package brings in PyTorch,</li><li data-page-node-id="4znXHEJISb9ogRENTla6GH">   which is a large download, so the first installation is slow. This was managed by</li><li data-page-node-id="6VsKq9rkDNeeMbAN81MRU1">   setting up a virtual environment and installing from <code data-page-node-id="8m6BRBu8bk0X8CLVjP8wZt">requirements.txt</code>.</li><li data-page-node-id="KDM6Hne241Dx7AbpESj97I"><strong data-page-node-id="Vq1Ft8MWqmnjEjQj2QWPKq">Model loading.</strong> The library distinguishes between a bare checkpoint name, which</li><li data-page-node-id="sYd116XDtNHBDOcu5Ja9hh">   it downloads itself, and a local file path, which must already exist. Handling both</li><li data-page-node-id="EJG7vMu0ahBPGNp0qdnD99">   cases correctly required an explicit check so that a missing local file is reported</li><li data-page-node-id="0Iew74B82LnhFAjMgDkY79">   clearly while an official checkpoint name is still allowed to download.</li><li data-page-node-id="nAUplA8F2iKAn5CrqfDL4Q"><strong data-page-node-id="XME1wKj9s89ovpA42bUCB3">Real-time processing.</strong> Fitting capture, inference, drawing and display into a</li><li data-page-node-id="8fNQ4DTfvtUSxvIbryKJmA">   per-frame budget required attention to what happens inside the loop. Keeping the</li><li data-page-node-id="ssmVOW21b6k3zMIiVsnWDs">   drawing code simple and passing the confidence threshold to the model — rather than</li><li data-page-node-id="W8eyP9qOHLPL4xgyszh6WD">   filtering detections afterwards — both reduce per-frame work.</li><li data-page-node-id="JU2XVkKr9kbN8hFFcyq2Rv"><strong data-page-node-id="hFmKZV5RsK4XHFSTVXx8I3">Balancing the confidence threshold against detections.</strong> A low threshold produces</li><li data-page-node-id="ohum4VQnsIWYmf5ClOct8n">   many detections, including weak and incorrect ones; a high threshold produces few</li><li data-page-node-id="AqZG87rhO6jmaraTTgK81k">   but misses real objects. Making the threshold adjustable at runtime, with the</li><li data-page-node-id="9NiUvXRByGeEDWbJyCOgYo">   current value shown on screen, turned out to be a practical way to explore that</li><li data-page-node-id="tf3xp8VfaekjNoP7tAkm2w">   trade-off during testing.</li><li data-page-node-id="TCM60HhxsuGRKYPTqRrtHL"><strong data-page-node-id="L4bZ6VHIumrFzGWWZYF1bt">Maintaining a responsive display loop.</strong> If the loop blocks for too long, the</li><li data-page-node-id="toAtRgjPRquzVTb8eZyEA4">   window stops responding and the video appears frozen. Keeping the per-frame work</li><li data-page-node-id="i7knSWkvc64ffPMd0bHDVs">   bounded and using a short wait for the key press keeps the interface responsive.</li><li data-page-node-id="qDkR9mprVQUZtqmyCZTob0"><strong data-page-node-id="dNJG7hCe4G06j22lfq18vY">Handling GPU and CPU execution.</strong> Inference runs on different devices depending on</li><li data-page-node-id="1C3AirJvF8LoN5Dc7D0ZfP">   the machine — CUDA, Apple Silicon MPS, or CPU. Selecting the device automatically</li><li data-page-node-id="gbD5dTsfcBlJVAyfNPfMkG">   and reporting which device was chosen makes the behaviour reproducible and</li><li data-page-node-id="nwlSSgUrvfgAbu2VDY8s9Y">   diagnosable across machines.</li><li data-page-node-id="NUOB2aYV7yE6q0Q9hyP0HX"><strong data-page-node-id="dyfTJP5CvEHFWMRzFDwj3k">Verifying behaviour without a camera.</strong> During development it was often necessary</li><li data-page-node-id="pIdVIH7m53swAlNa8g1gza">   to exercise the pipeline without access to a webcam. Allowing the camera module to</li><li data-page-node-id="DNzVbq89rSQhAkq5ZptSzx">   accept a video file as its source, and keeping the analytics and control modules</li><li data-page-node-id="l4LvMtXHRIeYWdFujIQlE8">   free of OpenCV and model dependencies, made it possible to test the pipeline and its</li><li data-page-node-id="ecL2agcXbnvegTPyJ7CSXj">   logic without hardware.</li></ol>
+<h2 id="section-23" data-page-node-id="YSVs3phJkR2SeWqxbkaK2B">23. Learning Outcomes</h2>
+<p data-page-node-id="zGAb8pQInBuHEmE9X6Xv4m">The project produced the following learning outcomes.</p>
+<ol data-page-node-id="VBCrsdqPfTSB3HE0uWdohf"><li data-page-node-id="6gPezeH3wzxsV1KIxVPnAE"><strong data-page-node-id="Dw0xldn6RgxDN7CXE164bT">Practical OpenCV usage.</strong> Capture, drawing primitives, text rendering, image</li><li data-page-node-id="FPBRFsmjorFb65sLIVCTRu">   writing and window management, together with the platform differences between</li><li data-page-node-id="MMCJBnPLcljGTJdVCWWuNt">   capture backends.</li><li data-page-node-id="V94Yfu5hBz7UE7vgUmuHnV"><strong data-page-node-id="OqyadUEpJHGQ1BULSHujdL">Real-time video processing.</strong> Structuring a loop around a per-frame time budget,</li><li data-page-node-id="HBLg5TYhxRogt7vuPA2HEW">   and measuring achieved performance from real timestamps rather than assuming it.</li><li data-page-node-id="i1kCg2PnlauYzQJ4jozzZH"><strong data-page-node-id="RUThZ3AZcsBUHAJ8dtZzfm">Object detection inference.</strong> How a detection model is invoked, what its output</li><li data-page-node-id="wtCdAIiu9ScLhbFn13b9G0">   contains, and how bounding boxes, class indices and confidence scores relate to one</li><li data-page-node-id="iRVDS12lRZdkqc6FWXhYii">   another.</li><li data-page-node-id="YYuuZOypVnJuEMEvajqaI7"><strong data-page-node-id="V1JiHYwKcA5io1C5gTvMtX">YOLO integration.</strong> Loading pretrained weights through the Ultralytics API,</li><li data-page-node-id="zAcuwf2gjRrcHdEvb9Svoa">   passing a confidence threshold and an inference resolution, and converting the</li><li data-page-node-id="BkJDiJsifYmgXeBf8DwR2o">   library's result objects into plain application data.</li><li data-page-node-id="giIgbdOku2gWeTAMkt4feZ"><strong data-page-node-id="mqwwhotcEqzuLqTSzWrwqh">Modular Python design.</strong> Separating concerns so that each module has one</li><li data-page-node-id="crTCwLzEK2xBT6PoKmLcAf">   responsibility, and choosing boundaries that make the code testable — in particular</li><li data-page-node-id="7KpwKzUkOTkWlwlr2zeBqf">   keeping OpenCV and model code out of the modules whose logic can be tested in</li><li data-page-node-id="ZlrL4exBsxJREEhOssieXq">   isolation.</li><li data-page-node-id="9XxlGjCWmBj9VfAttfAwUN"><strong data-page-node-id="FmII3TIyfiXTmbXOvmlvFa">Software testing.</strong> Writing unit tests that verify specified behaviour, using</li><li data-page-node-id="8D5LMTYbJQxSc5XNu03D6j">   explicit inputs for time-dependent logic, and recognising the boundary between</li><li data-page-node-id="jKQS2UChYZqO630M3OvFKJ">   testing the software and evaluating the model.</li><li data-page-node-id="rgbFEgTr4f2rYpzIG5JoCo"><strong data-page-node-id="4SAcXhA9w70tUe8Y4BEBNk">Git and GitHub workflow.</strong> Incremental commits with meaningful messages, and</li><li data-page-node-id="ua8gjbnM7Xg11lg9KwHS8N">   publishing and verifying a repository.</li><li data-page-node-id="8YPDwZnaIMgIOsJ775StmN"><strong data-page-node-id="pmFL8S3AdI6eJTNH638DhE">Interpreting model limitations.</strong> Understanding that a pretrained model is</li><li data-page-node-id="18iYeAVaIk9ykJixekV2jN">   bounded by its training data, that confidence is not the same as correctness, and</li><li data-page-node-id="3B53BVSEFwIQMfZGfK0Dxn">   that functional success is not the same as measured accuracy.</li></ol>
+<h2 id="section-24" data-page-node-id="lVP0rLgrq0MZfMVIqutG26">24. Future Enhancements</h2>
+<p data-page-node-id="1OXg1IgjlS498jJN1SvuL9">The following are <strong data-page-node-id="SGju1VfAyg8IFQP9LGkQXd">not implemented</strong>. They are recorded as realistic directions for further work.</p>
+<ol data-page-node-id="esZBO1PhGoRP3HHszTpd2C"><li data-page-node-id="iI8WBELiGEzdTepwJdPFyL"><strong data-page-node-id="LPThgil5Gng7DowRo8WHKd">Object tracking.</strong> Adding a tracking algorithm so that each object keeps a stable</li><li data-page-node-id="EZ3ShH46VeKlrA9StW3sAA">   identity across frames, which would also make counting more meaningful by avoiding</li><li data-page-node-id="DPdNlzHKWblE0cAGySS1wv">   double-counting the same object.</li><li data-page-node-id="QcMrijb8wcdxUuCEkCqT6J"><strong data-page-node-id="uwXwLoZtQ9ojSrdBHqxARE">A custom-trained model.</strong> Training on a dataset of classes chosen for a specific</li><li data-page-node-id="aHkuCcc2v8A1suM8kSzeKN">   application, which would remove the restriction to the 80 COCO classes.</li><li data-page-node-id="qNUM60LU1rKOYSXSyUfxtI"><strong data-page-node-id="NXUA613fp5UbTgEgrzAH3o">Video-file input.</strong> Allowing a recorded video to be processed instead of a live</li><li data-page-node-id="B16mfRAHPJ4dKS1qSNtw13">   camera feed. The camera module already accepts a file source internally, but this is</li><li data-page-node-id="SqH7P9Eh6IVO8XAzbWom6x">   not exposed as a command-line option.</li><li data-page-node-id="mqTKdBMvqCsYbeq1OgiGCf"><strong data-page-node-id="Yr01UjGg4syxWFjEBLiMuy">Line-crossing counting.</strong> Counting objects that cross a defined line in the frame,</li><li data-page-node-id="GSKrdPpwPjLbr0eXjVyV7j">   which is a common practical application of detection.</li><li data-page-node-id="Hpkl0MDWcsIx36Ccd8YY4O"><strong data-page-node-id="sFyAC76pf79PUFT4FHP5wA">Adaptive inference resolution.</strong> Reducing the inference resolution automatically</li><li data-page-node-id="4pzRuJLbefzVo0sP6FOdf7">   when the frame rate falls below a threshold, and restoring it when the frame rate</li><li data-page-node-id="IBNAoyco6duzqatTvvAcJv">   recovers.</li><li data-page-node-id="kxUWUPxuozszUIkHKJT1o4"><strong data-page-node-id="PUK5NgHV8Igdu0FXlk6QVv">A richer evaluation dataset.</strong> Building a labelled dataset to enable a genuine</li><li data-page-node-id="a2B1ThrzzQ2UEdjFdumc7j">   accuracy evaluation, which would allow precision, recall and mAP to be reported</li><li data-page-node-id="q6eyzXvSFB3OQsYCOKdzHG">   responsibly.</li></ol>
+<h2 id="section-25" data-page-node-id="zzIzidiRkkxcTpIgkyxw42">25. Conclusion</h2>
+<p data-page-node-id="K09KzoUDMPoVqYw2sCSORE">This report has described the design, implementation and testing of <strong data-page-node-id="iH4Sx0lNCi2y21wtSFJWLw">Real-Time Object Detection Using YOLO11</strong>, a webcam application that detects objects in a live video feed and displays the results with live statistics.</p>
+<p data-page-node-id="UNmuj7OCg4qg6oWwRwt72I">The system was implemented as seven modules with clearly separated responsibilities: a capture module, a detection module, an analytics module, a rendering module, a controls module, a command-line and loop module, and an entry point.</p>
+<p data-page-node-id="UfA4lGL7qjqIrGos47AOM9">The application runs from a single command, processes each frame through a pretrained YOLO11n model, draws bounding boxes with class names and confidence values, and maintains live statistics including frame rate and object counts. It supports runtime controls for quitting, saving a snapshot, clearing the statistics and adjusting the confidence threshold, and it writes a session summary to disk on exit.</p>
+<p data-page-node-id="A6FnAxkcmqgi6KH5gbql6s">The implementation is covered by 62 unit tests that verify the specified behaviour of each module without requiring a webcam, a display or a model download.</p>
+<p data-page-node-id="P2xtEvC2sGcpLjgQ6Ds62o">The system was also run against a physical webcam, where it loaded the model, captured and processed 1063 frames, drew the detections, saved a snapshot, generated the session summary and exited normally.</p>
+<p data-page-node-id="B3pTrcX8zFGKi6VyT8nsay">Two boundaries should be stated plainly. First, the object detection model is a third-party component: YOLO11 was developed and trained by Ultralytics, and no part of the neural network was created, trained or modified in this project. The contribution here is the application around the model.</p>
+<p data-page-node-id="VfclNbK6tagujJwiS0EAX9">Second, no formal accuracy evaluation was carried out, because no labelled evaluation dataset exists for this project; the results in Section 19 demonstrate that the system functions end to end, and they do not measure how accurate the model is.</p>
+<p data-page-node-id="i5OAfzALc55b3488OiBe39">Within those boundaries, the project met its objectives: it captures live video, detects common objects in real time with a pretrained model, displays the detections, reports live statistics, responds to runtime controls, saves snapshots and produces a session summary, in a modular implementation that is covered by tests.</p>
+<h2 id="section-26" class="references" data-page-node-id="wQnscl7W0k3L336k7bywrJ">26. References</h2>
+<ol data-page-node-id="PvxTcq8S0KHdajb8LZUoLM"><li data-page-node-id="TG9OoHas6VxF2m70aXgCCk">Ultralytics. <em data-page-node-id="D0ngy4iFkWyxDLv9qfqxtP">YOLO11 — Ultralytics Documentation.</em></li><li data-page-node-id="0bfxJTT1xqOLV9n8Gz2O6f">   https://docs.ultralytics.com/models/yolo11/ — the primary reference for the</li><li data-page-node-id="OXeGXSbsalaGAAJfHTMVjD">   YOLO11 model and its pretrained detection weights. Ultralytics states on this page</li><li data-page-node-id="GsXg9hu6qjplhTwFngpaWt">   that it has not published a formal research paper for YOLO11.</li><li data-page-node-id="ECbGetaAfCvxaxqAOxtKOQ">Ultralytics. <em data-page-node-id="yK2b1WrKLICXy2bfAGkb8B">Predict Mode — Ultralytics Documentation.</em></li><li data-page-node-id="UJFl8BxOvzByjfS8jPF7Gs">   https://docs.ultralytics.com/modes/predict/ — the inference API used by the</li><li data-page-node-id="hjqSwa7UxBbNGDsolrWjyn">   detection module.</li><li data-page-node-id="2udtmwnt6XzqIjDx6go7iV">Ultralytics. <em data-page-node-id="5cEYu1t1hgJ4ykygAxgqLh">Ultralytics YOLO11</em> (software), version 11.0.0, 2024. Authors: Glenn</li><li data-page-node-id="EVPAbYsqSHSVaMcJNEm9Pt">   Jocher and Jing Qiu. https://github.com/ultralytics/ultralytics — the official</li><li data-page-node-id="xTvtFF3wH2pFOQILeBQaCT">   software citation recommended by Ultralytics for citing YOLO11. Licensed under</li><li data-page-node-id="CyZbx0AMtygP5TAB9EzaH9">   AGPL-3.0.</li><li data-page-node-id="9yg3SNaB5tvVxhoFQZ3FpQ">OpenCV. <em data-page-node-id="CLai2dg5gXve7jgsGAqVTj">OpenCV Documentation.</em> https://docs.opencv.org/ — used for webcam</li><li data-page-node-id="mmslvLMRCsNGOdCQkDijjb">   capture, drawing and the display window.</li><li data-page-node-id="mZKw76aDzoAYc55AvGXIhs">Redmon, J., Divvala, S., Girshick, R., and Farhadi, A. (2016). *You Only Look Once:</li><li data-page-node-id="XfQmWXJXpKlKwvgFuJqu33">   Unified, Real-Time Object Detection.* IEEE Conference on Computer Vision and Pattern</li><li data-page-node-id="iVdASTR5JhC3XOv9HnlZ7B">   Recognition (CVPR).</li><li data-page-node-id="T2FsAr4049Dd85HGGvENxJ">Lin, T.-Y., Maire, M., Belongie, S., Hays, J., Perona, P., Ramanan, D., Dollár, P.,</li><li data-page-node-id="Hx7P8pPFrFYyPr1cHdTJOG">   and Zitnick, C. L. (2014). <em data-page-node-id="UhiAOdhzzTAY31AdI9teBk">Microsoft COCO: Common Objects in Context.</em> European</li><li data-page-node-id="vCRCBxV6Hb17kWNiMUB2SD">   Conference on Computer Vision (ECCV). Dataset: https://cocodataset.org/</li><li data-page-node-id="iBLe7LveixvCB2sJztAJuF">Project repository.</li><li data-page-node-id="8x6zQXQOEHJgfZBS58MeOI">   https://github.com/Abhijai10/real-time-object-detection-yolo11</li></ol>
+<p data-page-node-id="Tq2kjig91MbOVJL9n4b7Lm"><strong data-page-node-id="2F7VI8utVKrxVpMPkNHEwV">A note on the YOLO11 citation.</strong> No citation to a "YOLO11 research paper" is given, because Ultralytics has stated that no formal research paper has been published for YOLO11. The authoritative references for the model are the official documentation (items 1 and 2) and the official software citation (item 3). No bibliographic details have been invented for this report.</p>
+<h2 id="section-27" data-page-node-id="2FSYCsgTZZy6ciQ6TxbHb2">27. Appendix</h2>
+<p data-page-node-id="K0CHRVMrAjzl65cHWLbWMU">The material below supports the report with the exact commands, control mappings and file locations needed to reproduce the results described above.</p>
+<h3 data-page-node-id="Xhtf8nVTZpsltPZSFtNw7g">A. Running the Application</h3>
+<pre class="code-block" data-page-node-id="wMBNvpjpXf1DlN0borC2tc"><code data-page-node-id="QYlcw8uQXc7lMWf4ibowgT">python -m app</code></pre>
+<p data-page-node-id="OS3gKv5zZrgFia99QEXRam">Optional command-line options:</p>
+<table class="three-line-table" data-page-node-id="s9QnJzsFxy9uZwIOxt0bRp">
+<thead data-page-node-id="GdwpTNzjCVLODdnoq6UxjT"><tr data-page-node-id="YvSYlwlXXOnPfDPrTtzUyu"><th data-page-node-id="QUUdPrOdgi13OnO9OFnxlC">Option</th><th data-page-node-id="q0zPpvVbpnfp5Z6sq2pJRD">Default</th><th data-page-node-id="7o8KBqRcBLX8t50WzrsG8z">Meaning</th></tr></thead>
+<tbody data-page-node-id="EFl00sdCSIwv62Yg8a03Ha">
+<tr data-page-node-id="e5AJQqBdwK2KprjdER5lOF"><td data-page-node-id="JENffeSsFMPyrX2zUkIfyI"><code data-page-node-id="b5es13UMo39yQkASzCSlQE">--camera INDEX</code></td><td data-page-node-id="DGYxIniQHq7Rmf0WOZkXYK"><code data-page-node-id="STtxByZAFEoRWK5IpANsos">0</code></td><td data-page-node-id="rKIUcQndrMedahKMAjfMny">Which webcam to use.</td></tr>
+<tr data-page-node-id="vrblBx6OnAnQ0HXwOQWCps"><td data-page-node-id="3b5X1aDT2TCbLARKouXugz"><code data-page-node-id="fOgW4ZHqoKtgnGCGTzyGdl">--model PATH</code></td><td data-page-node-id="eJR9zzhDkXQZoVTfR6WW94"><code data-page-node-id="n9bfG13VnAsh8EEMv56GtR">yolo11n.pt</code></td><td data-page-node-id="CAit03LlzLyR912w61IHEQ">Model weights to use.</td></tr>
+<tr data-page-node-id="SQ616DSCHDnCh1ziMG7Kkc"><td data-page-node-id="lkijv80SAbnAE4bMKjcuDk"><code data-page-node-id="gq3eRG8b0X46VHwYdEWcxp">--conf FLOAT</code></td><td data-page-node-id="zzSQPISlJ1CKsrgo29p5qm"><code data-page-node-id="p9vGoEogqMQlRJcqKEwiFg">0.25</code></td><td data-page-node-id="2lHEvDM4ZGHCI6uOiKbi7z">Confidence threshold, between 0.05 and 0.95.</td></tr>
+<tr data-page-node-id="HUeX8K9x7voBozELLbZ1Vx"><td data-page-node-id="UVcc0ArKhOzGaNsMVofd2W"><code data-page-node-id="3l39fS9AGLdhOCTzj9gOkf">--width PIXELS</code></td><td data-page-node-id="258nu33I9uvKLSrBQSxB4t">driver default</td><td data-page-node-id="lIAG1egw1RoPKYgRIdcCFz">Requested capture width.</td></tr>
+<tr data-page-node-id="DQVGmwrTeJT8Pa4Rldj7WC"><td data-page-node-id="SRObtK4ItrbuUuhMJiayc5"><code data-page-node-id="3QKXQADzp9AvhOPSdi8MI8">--height PIXELS</code></td><td data-page-node-id="ylxRL6GPqEM44O0EzzWClj">driver default</td><td data-page-node-id="5aIENQ5FiIyrTwCzRBvDNw">Requested capture height.</td></tr>
+</tbody></table>
+<p data-page-node-id="SVPn6hJJZ08s8qDgokODjo"><code data-page-node-id="Um3DejUbiGBz8Lk8W8VRlR">--width</code> and <code data-page-node-id="V2AOVpDLJuHORIoWDWWj8H">--height</code> must be supplied together.</p>
+<h3 data-page-node-id="pb8Bo85Ba2gpD4Wkn5uQPb">B. Keyboard Controls</h3>
+<table class="three-line-table" data-page-node-id="uwUCaUQ56B71rOGBxB0H2M">
+<thead data-page-node-id="H8ARx5zse2UFvKZK2qwyrE"><tr data-page-node-id="gXNpyaH3e4u0SqiYkiihPz"><th data-page-node-id="tINz056kNYZ4Asu3urUEjQ">Key</th><th data-page-node-id="ge468WXotXIyLZs2Xw6eBc">Action</th></tr></thead>
+<tbody data-page-node-id="Fb7MDPZ0ytzK1mrhrn5mXP">
+<tr data-page-node-id="EgtzznjiEbn0VitYG99Zeu"><td data-page-node-id="2c4K55b5wlYdAaRAQrK1T9"><code data-page-node-id="ABrYeYoatVKh0Wp4thbju6">Q</code> or <code data-page-node-id="I65j5WICf2C3rMJtzExq3j">ESC</code></td><td data-page-node-id="u8N0rgvXyegF4cdt1HWFaX">Quit</td></tr>
+<tr data-page-node-id="uafpjgqOaBBVBQnDXkgd3D"><td data-page-node-id="ZlUZ0Ujt0BOu6WMv38JKwH"><code data-page-node-id="xxOQkGNjKn3pfOhMw6W7cG">S</code></td><td data-page-node-id="H5XQm5LNyGrDNPAHBmdXkA">Save a snapshot</td></tr>
+<tr data-page-node-id="kVgBBsOBTCEpEnjDKuM12U"><td data-page-node-id="wZ1lgjJnNViNe08BEMMtMd"><code data-page-node-id="W3jV4UpqaAihKTyHoyrja7">C</code></td><td data-page-node-id="RWdNbacJDpzRHb9FFbAHh4">Clear the statistics</td></tr>
+<tr data-page-node-id="RYsW4MZP1ZzBcjXC0mV7A7"><td data-page-node-id="7b8Ed9AYfxGUfVwmjvKila"><code data-page-node-id="kKeMO6KRoqwgvypOJ4WGUK">+</code></td><td data-page-node-id="alpTz3TjO9rtKvEQE3B6YE">Increase the confidence threshold</td></tr>
+<tr data-page-node-id="5Frw7ffYfFgAL8aFFtNBrm"><td data-page-node-id="78QtpYSFkrAte2aGUjADeB"><code data-page-node-id="7tDlTylogP3ru2KLI1wmQU">-</code></td><td data-page-node-id="OFD4NS4Kqe2XjVUGNGVe90">Decrease the confidence threshold</td></tr>
+</tbody></table>
+<h3 data-page-node-id="aZupJ816eOrG5AedfpvT9S">C. Running the Tests</h3>
+<pre class="code-block" data-page-node-id="L4UydFFtzz6oxxVGnyMyu3"><code data-page-node-id="iRS9kHkfLHg4KPuSVXdSa6">pytest -q</code></pre>
+<p data-page-node-id="omlI6UWYTpbYLgMSHVGrNY">The suite runs offline and does not require a webcam.</p>
+<h3 data-page-node-id="xqDUgpvpNhW5CHF3WtALvX">D. Repository</h3>
+<p data-page-node-id="51KYtthfYBE13Qkx6FyLR4">https://github.com/Abhijai10/real-time-object-detection-yolo11</p>
+<h3 data-page-node-id="DKignlByn2VvNrwOiQMefE">E. Output Files</h3>
+<table class="three-line-table" data-page-node-id="tDlrf2KuvITzK36NyDt1RQ">
+<thead data-page-node-id="ByG6ooTCG4N8SEOM47pcSV"><tr data-page-node-id="0GMSRvvQoDUs2q4WjtO2s6"><th data-page-node-id="uZugY4dzYCpuAG6GWPODVX">File</th><th data-page-node-id="hRN22EPty34O84nVYal979">Written when</th></tr></thead>
+<tbody data-page-node-id="LBph1foVoVRuXHsZOe0zkt">
+<tr data-page-node-id="ZUWOMzIrkjP7DQ9KUjHWXB"><td data-page-node-id="HFanYr0fqN2ZtNvxwewTdU"><code data-page-node-id="MFdMpuujzPFOBCfW54CeBS">outputs/snapshot_&lt;timestamp&gt;.jpg</code></td><td data-page-node-id="3tOJhYlOUB3iAM7eOEyCE6">The <code data-page-node-id="KypCXzjjFlfSaBh8ebpgUP">S</code> key is pressed.</td></tr>
+<tr data-page-node-id="Un5iMBnYoEGiBxuyT5V2Vu"><td data-page-node-id="3tI2nvcxXROgNE7xzppbOO"><code data-page-node-id="nifCsBlg8Gh69aDxWQPOV6">outputs/session_summary.json</code></td><td data-page-node-id="7qOfVElLvTdHHxATieSDnz">The application exits.</td></tr>
+</tbody></table>
+</section>
+</body>
+</html>
